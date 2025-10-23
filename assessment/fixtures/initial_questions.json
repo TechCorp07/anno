@@ -1,0 +1,73 @@
+[
+  {
+    "model": "assessment.question",
+    "pk": 1,
+    "fields": {
+      "question_type": "spatial",
+      "question_text": "In an MRI scan, which anatomical plane divides the body into left and right halves?",
+      "question_image": null,
+      "option_a": "Sagittal plane",
+      "option_b": "Coronal plane",
+      "option_c": "Axial (transverse) plane",
+      "option_d": "Oblique plane",
+      "correct_answer": "a",
+      "explanation": "The sagittal plane divides the body into left and right portions. The midsagittal plane specifically divides the body into equal left and right halves.",
+      "difficulty_level": 1,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "assessment.question",
+    "pk": 2,
+    "fields": {
+      "question_type": "mcq",
+      "question_text": "What is the approximate Hounsfield Unit (HU) range for adipose tissue (fat) on CT scans?",
+      "question_image": null,
+      "option_a": "-50 to 0 HU",
+      "option_b": "-190 to -30 HU",
+      "option_c": "0 to 50 HU",
+      "option_d": "50 to 100 HU",
+      "correct_answer": "b",
+      "explanation": "Adipose tissue typically measures between -190 and -30 HU on CT scans, with most fat measuring around -100 HU. This negative value reflects fat's lower density compared to water (0 HU).",
+      "difficulty_level": 2,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "assessment.question",
+    "pk": 3,
+    "fields": {
+      "question_type": "mcq",
+      "question_text": "Which organ is located in the left upper quadrant of the abdomen and is responsible for filtering blood and immune functions?",
+      "question_image": null,
+      "option_a": "Liver",
+      "option_b": "Gallbladder",
+      "option_c": "Spleen",
+      "option_d": "Pancreas",
+      "correct_answer": "c",
+      "explanation": "The spleen is located in the left upper quadrant, beneath the diaphragm and lateral to the stomach. It filters blood, removes old red blood cells, and plays a role in immune system function.",
+      "difficulty_level": 1,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "assessment.test",
+    "pk": 1,
+    "fields": {
+      "title": "Basic Anatomy Pre-Screening Test",
+      "description": "This test evaluates your foundational understanding of anatomical planes, imaging basics, and organ identification - essential skills for medical image annotation.",
+      "time_limit_minutes": 5,
+      "passing_score": 70,
+      "is_active": true,
+      "questions": [1, 2, 3],
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

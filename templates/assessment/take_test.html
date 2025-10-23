@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+
+{% block title %}Taking Test - {{ attempt.test.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto" x-data="testTimer({{ time_remaining }})">
+    <!-- Timer and Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6 sticky top-4 z-10">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">{{ attempt.test.title }}</h1>
+                <p class="text-gray-600">Question <span x-text="currentQuestion"></span> of {{ questions.count }}</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-600 mb-1">Time Remaining</div>
+                <div class="text-3xl font-bold" 
+                     :class="timeRemaining < 60 ? 'text-red-600' : timeRemaining < 300 ? 'text-yellow-600' : 'text-green-600'">
+                    <span x-text="formatTime(timeRemaining)"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="mt-4 w-full bg-gray-200 rounded-full h-2">
+            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                 :style="`width: ${(currentQuestion / {{ questions.count }}) * 100}%`"></div>
+        </div>
+    </div>
+
+    <!-- Questions -->
+    <form method="post" action="{% url 'submit_test' attempt.id %}">
+        {% csrf_token %}
+        
+        {% for question in questions %}
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-6" 
+             x-show="currentQuestion === {{ forloop.counter }}"
+             x-transition>
+            
+            <div class="mb-6">
+                <div class="flex items-start justify-between mb-4">
+                    <span class="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded">
+                        Question {{ forloop.counter }}
+                    </span>
+                    <span class="text-sm text-gray-500">{{ question.get_question_type_display }}</span>
+                </div>
+                
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                    {{ question.question_text }}
+                </h2>
+                
+                {% if question.question_image %}
+                <div class="mb-6">
+                    <img src="{{ question.question_image.url }}" 
+                         alt="Question image" 
+                         class="max-w-full rounded-lg shadow">
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Answer Options -->
+            <div class="space-y-3" x-data="{ selectedAnswer: '{{ question.id }}' in answers ? answers['{{ question.id }}'] : null }">
+                {% for option in 'abcd' %}
+                <label class="flex items-start p-4 border-2 rounded-lg cursor-pointer transition
+                              hover:border-blue-300 hover:bg-blue-50"
+                       :class="selectedAnswer === '{{ option }}' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
+                    <input type="radio" 
+                           name="question_{{ question.id }}" 
+                           value="{{ option }}"
+                           class="mt-1 mr-3 w-5 h-5 text-blue-600"
+                           x-model="selectedAnswer"
+                           hx-post="{% url 'submit_answer' attempt.id %}"
+                           hx-vals='{"question_id": "{{ question.id }}", "answer": "{{ option }}"}'
+                           hx-trigger="change"
+                           @change="markAnswered({{ question.id }}, $event.target.value)">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">{{ option|upper }}.</div>
+                        <div class="text-gray-700">
+                            {% if option == 'a' %}{{ question.option_a }}
+                            {% elif option == 'b' %}{{ question.option_b }}
+                            {% elif option == 'c' %}{{ question.option_c }}
+                            {% else %}{{ question.option_d }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+            
+            <!-- Navigation Buttons -->
+            <div class="flex justify-between mt-8 pt-6 border-t">
+                <button type="button"
+                        @click="previousQuestion()"
+                        x-show="currentQuestion > 1"
+                        class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                    ← Previous
+                </button>
+                
+                <div class="flex-1"></div>
+                
+                <button type="button"
+                        @click="nextQuestion()"
+                        x-show="currentQuestion < {{ questions.count }}"
+                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Next →
+                </button>
+                
+                <button type="button"
+                        @click="if(confirm('Are you sure you want to submit your test?')) { $el.closest('form').submit(); }"
+                        x-show="currentQuestion === {{ questions.count }}"
+                        class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                    Submit Test
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Question Navigator -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Question Navigator</h3>
+            <div class="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                {% for question in questions %}
+                <button type="button"
+                        @click="currentQuestion = {{ forloop.counter }}"
+                        class="w-full aspect-square rounded-lg font-semibold transition"
+                        :class="currentQuestion === {{ forloop.counter }} 
+                                ? 'bg-blue-600 text-white' 
+                                : ({{ question.id }} in answered) 
+                                    ? 'bg-green-100 text-green-800 border-2 border-green-300' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                    {{ forloop.counter }}
+                </button>
+                {% endfor %}
+            </div>
+            <div class="mt-4 flex items-center justify-center space-x-6 text-sm">
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-blue-600 rounded mr-2"></div>
+                    <span>Current</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-green-100 border-2 border-green-300 rounded mr-2"></div>
+                    <span>Answered</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-4 h-4 bg-gray-100 rounded mr-2"></div>
+                    <span>Not Answered</span>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function testTimer(initialTime) {
+    return {
+        timeRemaining: initialTime,
+        currentQuestion: 1,
+        answered: {},
+        answers: {},
+        
+        init() {
+            // Start timer countdown
+            this.startTimer();
+            
+            // Warn before leaving page
+            window.addEventListener('beforeunload', (e) => {
+                e.preventDefault();
+                e.returnValue = '';
+            });
+        },
+        
+        startTimer() {
+            setInterval(() => {
+                if (this.timeRemaining > 0) {
+                    this.timeRemaining--;
+                } else {
+                    // Auto-submit when time expires
+                    alert('Time is up! Your test will be submitted automatically.');
+                    document.querySelector('form').submit();
+                }
+            }, 1000);
+        },
+        
+        formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        },
+        
+        nextQuestion() {
+            if (this.currentQuestion < {{ questions.count }}) {
+                this.currentQuestion++;
+            }
+        },
+        
+        previousQuestion() {
+            if (this.currentQuestion > 1) {
+                this.currentQuestion--;
+            }
+        },
+        
+        markAnswered(questionId, answer) {
+            this.answered[questionId] = true;
+            this.answers[questionId] = answer;
+        }
+    }
+}
+</script>
+{% endblock %}

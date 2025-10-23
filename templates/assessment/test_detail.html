@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ test.title }} - MRI Training Platform{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Test Header -->
+    <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">{{ test.title }}</h1>
+        <p class="text-lg text-gray-600 mb-6">{{ test.description }}</p>
+        
+        <!-- Test Information -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-6 bg-gray-50 rounded-lg">
+            <div class="text-center">
+                <div class="text-3xl font-bold text-blue-600 mb-2">{{ test.get_total_questions }}</div>
+                <div class="text-sm text-gray-600">Questions</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-blue-600 mb-2">{{ test.time_limit_minutes }}</div>
+                <div class="text-sm text-gray-600">Minutes</div>
+            </div>
+            <div class="text-center">
+                <div class="text-3xl font-bold text-blue-600 mb-2">{{ test.passing_score }}%</div>
+                <div class="text-sm text-gray-600">Passing Score</div>
+            </div>
+        </div>
+        
+        <!-- Instructions -->
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+            <h3 class="font-semibold text-blue-800 mb-2">Instructions:</h3>
+            <ul class="list-disc list-inside text-blue-700 space-y-1">
+                <li>You have {{ test.time_limit_minutes }} minutes to complete this test</li>
+                <li>You must answer all questions</li>
+                <li>You need {{ test.passing_score }}% or higher to pass</li>
+                <li>Once started, the timer cannot be paused</li>
+                <li>Click "Submit Test" when you're done</li>
+            </ul>
+        </div>
+        
+        <!-- Start Test Button -->
+        <form method="post" action="{% url 'start_test' test.id %}">
+            {% csrf_token %}
+            <button type="submit" 
+                    class="w-full bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition text-lg font-semibold">
+                Start Test Now
+            </button>
+        </form>
+    </div>
+    
+    <!-- Previous Attempts -->
+    {% if previous_attempts %}
+    <div class="bg-white rounded-lg shadow-lg p-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Your Previous Attempts</h2>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Attempt</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for attempt in previous_attempts %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            #{{ forloop.counter }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ attempt.started_at|date:"M d, Y H:i" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            {% if attempt.score %}
+                                <span class="font-semibold {% if attempt.passed %}text-green-600{% else %}text-red-600{% endif %}">
+                                    {{ attempt.score }}%
+                                </span>
+                            {% else %}
+                                <span class="text-gray-400">Not completed</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if attempt.passed %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                    Passed
+                                </span>
+                            {% elif attempt.score %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                    Failed
+                                </span>
+                            {% else %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                    {{ attempt.get_status_display }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            {% if attempt.status == 'completed' %}
+                                <a href="{% url 'test_result' attempt.id %}" 
+                                   class="text-blue-600 hover:text-blue-900">
+                                    View Results
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
