@@ -2,6 +2,7 @@
 URL Configuration for Assessment App
 """
 from django.urls import path
+from assessment import proctoring_views
 from . import views
 
 urlpatterns = [
@@ -24,4 +25,9 @@ urlpatterns = [
     # HTMX endpoints
     path('attempt/<int:attempt_id>/answer/', views.submit_answer, name='submit_answer'),
     path('attempt/<int:attempt_id>/time/', views.get_time_remaining, name='get_time_remaining'),
+    
+    # Proctoring URLs
+    path('proctoring/snapshot/<int:attempt_id>/', proctoring_views.upload_proctoring_snapshot, name='upload_snapshot'),
+    path('proctoring/event/<int:attempt_id>/', proctoring_views.log_proctoring_event, name='log_event'),
+    path('test/<int:test_id>/consent/', proctoring_views.test_consent_form, name='test_consent'),
 ]

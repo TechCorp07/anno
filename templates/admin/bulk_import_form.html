@@ -1,0 +1,59 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div class="content" style="padding: 20px;">
+    <h1>Bulk Import Questions from Excel</h1>
+    
+    <div class="module" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6;">
+        <h2>Instructions</h2>
+        <ol>
+            <li><a href="{% url 'admin:question_download_template' %}" class="button">Download Excel Template</a></li>
+            <li>Fill in the template with your questions (one question per row)</li>
+            <li>Prepare images folder with files named: Q001.png, Q002.png, etc. (matching Question Number column)</li>
+            <li>Upload both the Excel file and image files below</li>
+        </ol>
+        
+        <h3>Excel Columns:</h3>
+        <ul style="list-style-type: disc; margin-left: 20px;">
+            <li><strong>Question Number</strong>: Unique number (used to match with image files)</li>
+            <li><strong>Topic Name</strong>: Must match existing topic name exactly</li>
+            <li><strong>Question Type</strong>: mcq, spatial, verbal, numerical, pattern, error_detection, image, dicom, annotation</li>
+            <li><strong>Question Text</strong>: The actual question</li>
+            <li><strong>Options A-D</strong>: Answer choices (for MCQ questions)</li>
+            <li><strong>Correct Answer</strong>: a, b, c, or d</li>
+            <li><strong>Explanation</strong>: Explanation of correct answer</li>
+            <li><strong>Difficulty</strong>: 1-5 (1=Easy, 5=Hard)</li>
+            <li><strong>Time Limit</strong>: Seconds allowed for this question</li>
+            <li><strong>Points</strong>: Points awarded for correct answer</li>
+        </ul>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <div>
+                    <label for="excel_file">Excel File (.xlsx):</label>
+                    <input type="file" name="excel_file" id="excel_file" accept=".xlsx" required>
+                    <p class="help">Upload your filled Excel template</p>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div>
+                    <label for="image_folder">Question Images:</label>
+                    <input type="file" name="image_folder" id="image_folder" multiple accept="image/*">
+                    <p class="help">Select all image files (Q001.png, Q002.png, etc.)</p>
+                </div>
+            </div>
+        </fieldset>
+        
+        <div class="submit-row">
+            <input type="submit" value="Import Questions" class="default">
+            <a href="{% url 'admin:assessment_question_changelist' %}" class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

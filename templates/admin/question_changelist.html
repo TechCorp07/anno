@@ -1,0 +1,16 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="{% url 'admin:question_bulk_import' %}" class="addlink">
+            Bulk Import from Excel
+        </a>
+    </li>
+    <li>
+        <a href="{% url 'admin:question_download_template' %}" class="viewlink">
+            Download Excel Template
+        </a>
+    </li>
+{% endblock %}

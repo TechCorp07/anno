@@ -121,35 +121,80 @@ def start_test(request, test_id):
 
 @login_required
 def take_test(request, attempt_id):
-    """Take the test - display questions"""
+    """
+    Handle test taking with proctoring
+    """
     attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
     
-    # Check if already completed
-    if attempt.status == 'completed':
-        messages.info(request, 'This test has already been completed.')
-        return redirect('test_result', attempt_id=attempt.id)
-    
-    # Check if expired
+    # Check if test has expired
     if attempt.is_expired():
         attempt.status = 'expired'
         attempt.save()
-        messages.error(request, 'Test time has expired.')
-        return redirect('test_result', attempt_id=attempt.id)
+        messages.error(request, 'This test has expired.')
+        return redirect('dashboard')
     
-    # Get all questions for this test
-    questions = attempt.test.questions.all()
+    # Generate question set if not already done
+    if not attempt.question_set:
+        questions = attempt.test.generate_question_set()
+        attempt.question_set = [q.id for q in questions]
+        attempt.status = 'in_progress'
+        attempt.save()
     
-    # Get already answered questions
-    answered_question_ids = attempt.answers.values_list('question_id', flat=True)
+    # Get questions from stored question_set
+    from assessment.models import Question
+    question_ids = attempt.question_set
+    questions = Question.objects.filter(id__in=question_ids).order_by('?')  # Randomize order
+    
+    # Get already answered question IDs
+    answered_ids = attempt.answers.values_list('question_id', flat=True)
+    
+    # Get next unanswered question
+    unanswered_questions = [q for q in questions if q.id not in answered_ids]
+    
+    if not unanswered_questions:
+        # All questions answered - calculate score and redirect to results
+        attempt.calculate_score()
+        attempt.status = 'completed'
+        attempt.completed_at = timezone.now()
+        attempt.time_spent_seconds = int((timezone.now() - attempt.started_at).total_seconds())
+        attempt.save()
+        return redirect('test_results', attempt_id=attempt.id)
+    
+    current_question = unanswered_questions[0]
+    question_number = len(answered_ids) + 1
+    total_questions = len(questions)
+    
+    if request.method == 'POST':
+        # Handle answer submission
+        selected_answer = request.POST.get('answer')
+        time_spent = int(request.POST.get('time_spent', 0))
+        
+        if selected_answer:
+            # Create answer
+            from assessment.models import Answer
+            answer = Answer.objects.create(
+                attempt=attempt,
+                question=current_question,
+                selected_answer=selected_answer,
+                time_spent_seconds=time_spent
+            )
+            answer.check_answer()
+            
+            messages.success(request, 'Answer submitted!')
+            return redirect('take_test', attempt_id=attempt.id)
+        else:
+            messages.error(request, 'Please select an answer.')
     
     context = {
         'attempt': attempt,
-        'questions': questions,
-        'answered_question_ids': list(answered_question_ids),
+        'question': current_question,
+        'question_number': question_number,
+        'total_questions': total_questions,
+        'progress_percentage': int((question_number / total_questions) * 100),
         'time_remaining': attempt.time_remaining_seconds(),
     }
+    
     return render(request, 'assessment/take_test.html', context)
-
 
 @login_required
 @require_http_methods(["POST"])

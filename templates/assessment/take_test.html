@@ -1,4 +1,36 @@
 {% extends 'base.html' %}
+{% block extra_js %}
+<!-- HTML2Canvas for screen capture -->
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+<!-- Proctoring System -->
+<script src="{% static 'js/proctoring.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+    // Initialize proctoring
+    const proctoring = new ProctoringSystem(
+        {{ attempt.id }},
+        {{ attempt.test.snapshot_interval_seconds }},
+        '{{ csrf_token }}'
+    );
+    
+    const initialized = await proctoring.initialize();
+    
+    if (!initialized) {
+        alert('Cannot start test without webcam access');
+        window.location.href = '{% url "dashboard" %}';
+    }
+    
+    // Cleanup on test submit
+    window.addEventListener('beforeunload', () => {
+        proctoring.cleanup();
+    });
+});
+</script>
+
+{{ block.super }}
+{% endblock %}
 
 {% block title %}Taking Test - {{ attempt.test.title }}{% endblock %}
 

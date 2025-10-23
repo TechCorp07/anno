@@ -1,0 +1,75 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block content_title %}
+    <h1>Test Attempts Analytics</h1>
+{% endblock %}
+
+{% block result_list %}
+<!-- Analytics Dashboard -->
+<div class="module" style="margin-bottom: 20px;">
+    <h2>Overview Statistics</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 15px;">
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2em; font-weight: bold; color: #1976d2;">{{ total_attempts }}</div>
+            <div style="color: #666;">Total Attempts</div>
+        </div>
+        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2em; font-weight: bold; color: #388e3c;">{{ completed_attempts }}</div>
+            <div style="color: #666;">Completed</div>
+        </div>
+        <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2em; font-weight: bold; color: #f57c00;">{{ pass_rate|floatformat:1 }}%</div>
+            <div style="color: #666;">Pass Rate</div>
+        </div>
+        <div style="background: #fce4ec; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2em; font-weight: bold; color: #c2185b;">{{ avg_score|floatformat:1 }}%</div>
+            <div style="color: #666;">Average Score</div>
+        </div>
+        <div style="background: #ffebee; padding: 15px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 2em; font-weight: bold; color: #d32f2f;">{{ flagged_count }}</div>
+            <div style="color: #666;">Plagiarism Flags</div>
+        </div>
+    </div>
+</div>
+
+<!-- Per-Category Statistics -->
+{% if category_stats %}
+<div class="module" style="margin-bottom: 20px;">
+    <h2>Performance by Test Category</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="background: #f5f5f5;">
+                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Stage</th>
+                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Category</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Attempts</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Pass Rate</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Avg Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stat in category_stats %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px;">
+                    <strong>Stage {{ stat.stage }}</strong>
+                </td>
+                <td style="padding: 10px;">{{ stat.name }}</td>
+                <td style="padding: 10px; text-align: center;">{{ stat.attempts }}</td>
+                <td style="padding: 10px; text-align: center;">
+                    <span style="padding: 4px 8px; border-radius: 4px; background: {% if stat.pass_rate >= 70 %}#c8e6c9{% elif stat.pass_rate >= 50 %}#fff9c4{% else %}#ffcdd2{% endif %};">
+                        {{ stat.pass_rate|floatformat:1 }}%
+                    </span>
+                </td>
+                <td style="padding: 10px; text-align: center;">
+                    {{ stat.avg_score|floatformat:1 }}%
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Actual change list table -->
+{{ block.super }}
+{% endblock %}
