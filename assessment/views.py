@@ -118,11 +118,10 @@ def start_test(request, test_id):
     messages.success(request, f'Test started! You have {test.time_limit_minutes} minutes.')
     return redirect('take_test', attempt_id=attempt.id)
 
-
 @login_required
 def take_test(request, attempt_id):
     """
-    Handle test taking with proctoring
+    Handle test taking with proctoring - Compatible with Alpine.js template
     """
     attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
     
@@ -140,57 +139,17 @@ def take_test(request, attempt_id):
         attempt.status = 'in_progress'
         attempt.save()
     
-    # Get questions from stored question_set
+    # Get ALL questions from stored question_set (for Alpine.js template)
     from assessment.models import Question
     question_ids = attempt.question_set
-    questions = Question.objects.filter(id__in=question_ids).order_by('?')  # Randomize order
+    questions = Question.objects.filter(id__in=question_ids)
     
-    # Get already answered question IDs
-    answered_ids = attempt.answers.values_list('question_id', flat=True)
-    
-    # Get next unanswered question
-    unanswered_questions = [q for q in questions if q.id not in answered_ids]
-    
-    if not unanswered_questions:
-        # All questions answered - calculate score and redirect to results
-        attempt.calculate_score()
-        attempt.status = 'completed'
-        attempt.completed_at = timezone.now()
-        attempt.time_spent_seconds = int((timezone.now() - attempt.started_at).total_seconds())
-        attempt.save()
-        return redirect('test_results', attempt_id=attempt.id)
-    
-    current_question = unanswered_questions[0]
-    question_number = len(answered_ids) + 1
-    total_questions = len(questions)
-    
-    if request.method == 'POST':
-        # Handle answer submission
-        selected_answer = request.POST.get('answer')
-        time_spent = int(request.POST.get('time_spent', 0))
-        
-        if selected_answer:
-            # Create answer
-            from assessment.models import Answer
-            answer = Answer.objects.create(
-                attempt=attempt,
-                question=current_question,
-                selected_answer=selected_answer,
-                time_spent_seconds=time_spent
-            )
-            answer.check_answer()
-            
-            messages.success(request, 'Answer submitted!')
-            return redirect('take_test', attempt_id=attempt.id)
-        else:
-            messages.error(request, 'Please select an answer.')
+    # Preserve order from question_set
+    questions = sorted(questions, key=lambda q: question_ids.index(q.id))
     
     context = {
         'attempt': attempt,
-        'question': current_question,
-        'question_number': question_number,
-        'total_questions': total_questions,
-        'progress_percentage': int((question_number / total_questions) * 100),
+        'questions': questions,  # All questions for Alpine.js
         'time_remaining': attempt.time_remaining_seconds(),
     }
     

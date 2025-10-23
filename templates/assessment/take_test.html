@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block extra_js %}
 <!-- HTML2Canvas for screen capture -->
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -28,8 +30,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 });
 </script>
-
-{{ block.super }}
 {% endblock %}
 
 {% block title %}Taking Test - {{ attempt.test.title }}{% endblock %}
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         <div class="flex justify-between items-center">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">{{ attempt.test.title }}</h1>
-                <p class="text-gray-600">Question <span x-text="currentQuestion"></span> of {{ questions.count }}</p>
+                <p class="text-gray-600">Question <span x-text="currentQuestion"></span> of {{ questions|length }}</p>
             </div>
             <div class="text-right">
                 <div class="text-sm text-gray-600 mb-1">Time Remaining</div>
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         <!-- Progress Bar -->
         <div class="mt-4 w-full bg-gray-200 rounded-full h-2">
             <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                 :style="`width: ${(currentQuestion / {{ questions.count }}) * 100}%`"></div>
+                 :style="`width: ${(currentQuestion / {{ questions|length }}) * 100}%`"></div>
         </div>
     </div>
 
@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             <!-- Answer Options -->
             <div class="space-y-3" x-data="{ selectedAnswer: '{{ question.id }}' in answers ? answers['{{ question.id }}'] : null }">
                 {% for option in 'abcd' %}
+                {% if option == 'a' and question.option_a %}
                 <label class="flex items-start p-4 border-2 rounded-lg cursor-pointer transition
                               hover:border-blue-300 hover:bg-blue-50"
                        :class="selectedAnswer === '{{ option }}' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
@@ -105,16 +106,65 @@ document.addEventListener('DOMContentLoaded', async function() {
                            hx-trigger="change"
                            @change="markAnswered({{ question.id }}, $event.target.value)">
                     <div class="flex-1">
-                        <div class="font-medium text-gray-900">{{ option|upper }}.</div>
-                        <div class="text-gray-700">
-                            {% if option == 'a' %}{{ question.option_a }}
-                            {% elif option == 'b' %}{{ question.option_b }}
-                            {% elif option == 'c' %}{{ question.option_c }}
-                            {% else %}{{ question.option_d }}
-                            {% endif %}
-                        </div>
+                        <div class="font-medium text-gray-900">A.</div>
+                        <div class="text-gray-700">{{ question.option_a }}</div>
                     </div>
                 </label>
+                {% elif option == 'b' and question.option_b %}
+                <label class="flex items-start p-4 border-2 rounded-lg cursor-pointer transition
+                              hover:border-blue-300 hover:bg-blue-50"
+                       :class="selectedAnswer === '{{ option }}' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
+                    <input type="radio" 
+                           name="question_{{ question.id }}" 
+                           value="{{ option }}"
+                           class="mt-1 mr-3 w-5 h-5 text-blue-600"
+                           x-model="selectedAnswer"
+                           hx-post="{% url 'submit_answer' attempt.id %}"
+                           hx-vals='{"question_id": "{{ question.id }}", "answer": "{{ option }}"}'
+                           hx-trigger="change"
+                           @change="markAnswered({{ question.id }}, $event.target.value)">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">B.</div>
+                        <div class="text-gray-700">{{ question.option_b }}</div>
+                    </div>
+                </label>
+                {% elif option == 'c' and question.option_c %}
+                <label class="flex items-start p-4 border-2 rounded-lg cursor-pointer transition
+                              hover:border-blue-300 hover:bg-blue-50"
+                       :class="selectedAnswer === '{{ option }}' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
+                    <input type="radio" 
+                           name="question_{{ question.id }}" 
+                           value="{{ option }}"
+                           class="mt-1 mr-3 w-5 h-5 text-blue-600"
+                           x-model="selectedAnswer"
+                           hx-post="{% url 'submit_answer' attempt.id %}"
+                           hx-vals='{"question_id": "{{ question.id }}", "answer": "{{ option }}"}'
+                           hx-trigger="change"
+                           @change="markAnswered({{ question.id }}, $event.target.value)">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">C.</div>
+                        <div class="text-gray-700">{{ question.option_c }}</div>
+                    </div>
+                </label>
+                {% elif option == 'd' and question.option_d %}
+                <label class="flex items-start p-4 border-2 rounded-lg cursor-pointer transition
+                              hover:border-blue-300 hover:bg-blue-50"
+                       :class="selectedAnswer === '{{ option }}' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
+                    <input type="radio" 
+                           name="question_{{ question.id }}" 
+                           value="{{ option }}"
+                           class="mt-1 mr-3 w-5 h-5 text-blue-600"
+                           x-model="selectedAnswer"
+                           hx-post="{% url 'submit_answer' attempt.id %}"
+                           hx-vals='{"question_id": "{{ question.id }}", "answer": "{{ option }}"}'
+                           hx-trigger="change"
+                           @change="markAnswered({{ question.id }}, $event.target.value)">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900">D.</div>
+                        <div class="text-gray-700">{{ question.option_d }}</div>
+                    </div>
+                </label>
+                {% endif %}
                 {% endfor %}
             </div>
             
@@ -131,14 +181,14 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 <button type="button"
                         @click="nextQuestion()"
-                        x-show="currentQuestion < {{ questions.count }}"
+                        x-show="currentQuestion < {{ questions|length }}"
                         class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
                     Next →
                 </button>
                 
                 <button type="button"
                         @click="if(confirm('Are you sure you want to submit your test?')) { $el.closest('form').submit(); }"
-                        x-show="currentQuestion === {{ questions.count }}"
+                        x-show="currentQuestion === {{ questions|length }}"
                         class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                     Submit Test
                 </button>
@@ -180,9 +230,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         </div>
     </form>
 </div>
-{% endblock %}
 
-{% block extra_js %}
 <script>
 function testTimer(initialTime) {
     return {
@@ -221,7 +269,7 @@ function testTimer(initialTime) {
         },
         
         nextQuestion() {
-            if (this.currentQuestion < {{ questions.count }}) {
+            if (this.currentQuestion < {{ questions|length }}) {
                 this.currentQuestion++;
             }
         },
