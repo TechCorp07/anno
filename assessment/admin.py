@@ -67,6 +67,8 @@ class QuestionAdmin(admin.ModelAdmin):
     list_filter = ['question_type', 'difficulty_level', 'is_active', 'topic__category']
     search_fields = ['question_text', 'option_a', 'option_b', 'option_c', 'option_d']
     list_editable = ['is_active', 'difficulty_level']
+    change_form_template = 'admin/assessment/question/change_form.html'
+    add_form_template = 'admin/assessment/question/change_form.html'
     
     def question_text_short(self, obj):
         text = obj.question_text[:60] + '...' if len(obj.question_text) > 60 else obj.question_text
@@ -346,6 +348,8 @@ class TestAdmin(admin.ModelAdmin):
     search_fields = ['title', 'description']
     filter_horizontal = ['manual_questions']
     list_editable = ['is_active']
+    change_form_template = 'admin/assessment/test/change_form.html'
+    add_form_template = 'admin/assessment/test/change_form.html'
     
     def total_questions(self, obj):
         return obj.get_total_questions()

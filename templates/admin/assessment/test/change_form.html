@@ -1,0 +1,521 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    .form-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        padding: 25px 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    
+    .form-header h1 {
+        margin: 0;
+        font-size: 2em;
+    }
+    
+    .form-header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+    }
+    
+    .form-section {
+        margin-bottom: 30px;
+        padding: 25px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #4CAF50;
+    }
+    
+    .form-section h2 {
+        margin: 0 0 20px 0;
+        color: #1a1a1a;
+        font-size: 1.3em;
+        font-weight: 600;
+    }
+    
+    .form-row {
+        margin-bottom: 20px;
+    }
+    
+    .form-row label {
+        display: block;
+        margin-bottom: 8px;
+        color: #1a1a1a;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .form-row .helptext {
+        display: block;
+        margin-top: 5px;
+        color: #666;
+        font-size: 12px;
+        font-style: italic;
+    }
+    
+    .form-row input[type="text"],
+    .form-row input[type="number"],
+    .form-row select,
+    .form-row textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+        font-family: inherit;
+    }
+    
+    .form-row input[type="text"]:focus,
+    .form-row input[type="number"]:focus,
+    .form-row select:focus,
+    .form-row textarea:focus {
+        border-color: #4CAF50;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    }
+    
+    .form-row textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .btn-container {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-start;
+        margin-top: 30px;
+        padding-top: 30px;
+        border-top: 2px solid #e0e0e0;
+    }
+    
+    .btn {
+        padding: 12px 30px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-primary {
+        background: #4CAF50;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+    }
+    
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #c82333;
+    }
+    
+    .required-field label::after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .errorlist {
+        list-style: none;
+        padding: 10px 15px;
+        margin: 10px 0;
+        background: #f8d7da;
+        border-left: 4px solid #dc3545;
+        border-radius: 4px;
+        color: #721c24;
+    }
+    
+    .info-box {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 10px;
+        border-left: 4px solid #2196F3;
+    }
+    
+    .info-box strong {
+        color: #1565C0;
+    }
+    
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+    }
+    
+    .checkbox-group label {
+        margin: 0;
+        cursor: pointer;
+    }
+    
+    /* Multi-select widget styling */
+    .selector {
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+    
+    .selector select {
+        border: none;
+        border-radius: 0;
+    }
+    
+    .selector-available h2,
+    .selector-chosen h2 {
+        background: #4CAF50;
+        color: white;
+        padding: 10px;
+        margin: 0;
+        font-size: 14px;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide question selection based on auto-generate option
+    const autoGenerateCheckbox = document.querySelector('input[name="auto_generate_from_topics"]');
+    const manualQuestionsSection = document.getElementById('manual-questions-section');
+    
+    if (autoGenerateCheckbox && manualQuestionsSection) {
+        autoGenerateCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                manualQuestionsSection.style.display = 'none';
+            } else {
+                manualQuestionsSection.style.display = 'block';
+            }
+        });
+        
+        // Initialize on page load
+        if (autoGenerateCheckbox.checked) {
+            manualQuestionsSection.style.display = 'none';
+        }
+    }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div style="background: #f5f7fa; min-height: 100vh; padding: 20px;">
+    <div class="form-container">
+        <div class="form-header">
+            <h1>{% if original %}✏️ Edit Test{% else %}➕ Create New Test{% endif %}</h1>
+            <p>{% if original %}Update the test configuration below{% else %}Configure a new test for your students{% endif %}</p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" id="test-form">
+            {% csrf_token %}
+            
+            <!-- Django admin hidden fields -->
+            {% if adminform %}
+                {% for field in adminform.form.hidden_fields %}
+                    {{ field }}
+                {% endfor %}
+            {% endif %}
+            
+            <!-- Display form errors -->
+            {% if form.errors or adminform.form.errors %}
+            <div class="errorlist">
+                <strong>⚠️ Please correct the following errors:</strong>
+                <ul>
+                {% for field in adminform.form %}
+                    {% if field.errors %}
+                        {% for error in field.errors %}
+                        <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Basic Information -->
+            <div class="form-section">
+                <h2>📋 Test Information</h2>
+                
+                {% for fieldset in adminform %}
+                    {% for line in fieldset %}
+                        {% for field in line %}
+                            {% if field.field.name == 'category' or field.field.name == 'title' or field.field.name == 'description' %}
+                                <div class="form-row {% if field.field.required %}required-field{% endif %}">
+                                    <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
+                                    {{ field.field }}
+                                    {% if field.field.help_text %}
+                                    <span class="helptext">{{ field.field.help_text }}</span>
+                                    {% endif %}
+                                    
+                                    {% if field.field.name == 'category' %}
+                                    <div class="info-box">
+                                        <strong>ℹ️ Test Categories:</strong><br>
+                                        Categories represent different stages of the assessment. Each category has its own passing score and topics.
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if field.field.name == 'description' %}
+                                    <span class="helptext">Provide instructions and information about this test</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- Question Configuration -->
+            <div class="form-section">
+                <h2>📝 Question Configuration</h2>
+                
+                {% for fieldset in adminform %}
+                    {% for line in fieldset %}
+                        {% for field in line %}
+                            {% if field.field.name == 'auto_generate_from_topics' %}
+                                <div class="form-row">
+                                    <div class="checkbox-group">
+                                        {{ field.field }}
+                                        <label for="{{ field.field.html_name }}">
+                                            Auto-generate questions from topics
+                                        </label>
+                                    </div>
+                                    <div class="info-box" style="margin-top: 10px;">
+                                        <strong>🎲 Auto-Generate:</strong><br>
+                                        When enabled, questions will be randomly selected from the configured topics in the selected category. 
+                                        The number of questions per topic is set in the Topic configuration.<br><br>
+                                        <strong>Manual Selection:</strong><br>
+                                        When disabled, you can manually select specific questions for this test.
+                                    </div>
+                                </div>
+                            {% endif %}
+                            
+                            {% if field.field.name == 'manual_questions' %}
+                                <div class="form-row" id="manual-questions-section">
+                                    <label for="{{ field.field.html_name }}">Select Questions Manually</label>
+                                    {{ field.field }}
+                                    <span class="helptext">Hold Ctrl (Cmd on Mac) to select multiple questions</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- Test Configuration -->
+            <div class="form-section">
+                <h2>⚙️ Test Settings</h2>
+                
+                <div class="form-grid">
+                    {% for fieldset in adminform %}
+                        {% for line in fieldset %}
+                            {% for field in line %}
+                                {% if field.field.name == 'time_limit_minutes' %}
+                                    <div class="form-row {% if field.field.required %}required-field{% endif %}">
+                                        <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
+                                        {{ field.field }}
+                                        <span class="helptext">Total time allowed for completing this test</span>
+                                    </div>
+                                {% endif %}
+                                
+                                {% if field.field.name == 'passing_score' %}
+                                    <div class="form-row {% if field.field.required %}required-field{% endif %}">
+                                        <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
+                                        {{ field.field }}
+                                        <span class="helptext">Minimum percentage required to pass (0-100)</span>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                
+                {% for fieldset in adminform %}
+                    {% for line in fieldset %}
+                        {% for field in line %}
+                            {% if field.field.name == 'is_active' %}
+                                <div class="form-row">
+                                    <div class="checkbox-group">
+                                        {{ field.field }}
+                                        <label for="{{ field.field.html_name }}">
+                                            Active (test will be available to users)
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- Proctoring Settings -->
+            <div class="form-section">
+                <h2>🔒 Proctoring & Security Settings</h2>
+                
+                {% for fieldset in adminform %}
+                    {% for line in fieldset %}
+                        {% for field in line %}
+                            {% if field.field.name == 'require_webcam' %}
+                                <div class="form-row">
+                                    <div class="checkbox-group">
+                                        {{ field.field }}
+                                        <label for="{{ field.field.html_name }}">
+                                            Require Webcam
+                                        </label>
+                                    </div>
+                                    <span class="helptext">Users must enable webcam to take this test</span>
+                                </div>
+                            {% endif %}
+                            
+                            {% if field.field.name == 'require_fullscreen' %}
+                                <div class="form-row">
+                                    <div class="checkbox-group">
+                                        {{ field.field }}
+                                        <label for="{{ field.field.html_name }}">
+                                            Require Fullscreen
+                                        </label>
+                                    </div>
+                                    <span class="helptext">Users must stay in fullscreen mode during the test</span>
+                                </div>
+                            {% endif %}
+                            
+                            {% if field.field.name == 'snapshot_interval_seconds' %}
+                                <div class="form-row">
+                                    <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
+                                    {{ field.field }}
+                                    <span class="helptext">How often to capture webcam snapshots (0 to disable)</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endfor %}
+                
+                <div class="info-box">
+                    <strong>🔐 Security Features:</strong><br>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li><strong>Webcam:</strong> Captures user identity and prevents cheating</li>
+                        <li><strong>Fullscreen:</strong> Prevents tab switching and window switching</li>
+                        <li><strong>Snapshots:</strong> Periodic captures for proctoring review</li>
+                    </ul>
+                </div>
+            </div>
+
+            {% if original %}
+            <!-- Test Statistics (only show for existing tests) -->
+            <div class="form-section" style="border-left-color: #FF9800;">
+                <h2>📊 Test Statistics</h2>
+                
+                <div class="form-grid">
+                    <div>
+                        <strong>Total Questions:</strong><br>
+                        <span style="font-size: 2em; color: #2196F3;">{{ original.get_total_questions }}</span>
+                    </div>
+                    <div>
+                        <strong>Total Attempts:</strong><br>
+                        <span style="font-size: 2em; color: #4CAF50;">{{ original.attempts.count }}</span>
+                    </div>
+                </div>
+                
+                <a href="{% url 'admin:assessment_testattempt_changelist' %}?test__id__exact={{ original.id }}" class="btn btn-secondary" style="margin-top: 15px;">
+                    View All Attempts →
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <div class="btn-container">
+                <button type="submit" name="_save" class="btn btn-primary">
+                    💾 Save Test
+                </button>
+                <button type="submit" name="_continue" class="btn btn-primary">
+                    💾 Save and Continue Editing
+                </button>
+                <button type="submit" name="_addanother" class="btn btn-primary">
+                    ➕ Save and Add Another
+                </button>
+                <a href="{% url 'admin:assessment_test_changelist' %}" class="btn btn-secondary">
+                    ❌ Cancel
+                </a>
+                {% if original %}
+                <a href="{% url 'admin:assessment_test_delete' original.pk %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this test? This will also delete all associated attempts!')">
+                    🗑️ Delete
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide question selection based on auto-generate option
+    const autoGenerateCheckbox = document.querySelector('input[name="auto_generate_from_topics"]');
+    const manualQuestionsSection = document.getElementById('manual-questions-section');
+    
+    if (autoGenerateCheckbox && manualQuestionsSection) {
+        autoGenerateCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                manualQuestionsSection.style.display = 'none';
+            } else {
+                manualQuestionsSection.style.display = 'block';
+            }
+        });
+        
+        // Initialize on page load
+        if (autoGenerateCheckbox.checked) {
+            manualQuestionsSection.style.display = 'none';
+        }
+    }
+});
+</script>
+{% endblock %}
