@@ -520,3 +520,52 @@ class PlagiarismFlagAdmin(admin.ModelAdmin):
             'fields': ('detected_at',)
         }),
     )
+
+def admin_dashboard_view(request):
+    """
+    Central admin dashboard - hub for all admin features
+    """
+    from django.contrib.auth.models import User
+    
+    # Gather statistics
+    total_questions = Question.objects.filter(is_active=True).count()
+    total_users = User.objects.count()
+    total_attempts = TestAttempt.objects.filter(status='completed').count()
+    
+    pass_rate = 0
+    if total_attempts > 0:
+        passed = TestAttempt.objects.filter(passed=True).count()
+        pass_rate = (passed / total_attempts) * 100
+    
+    flagged_count = TestAttempt.objects.filter(flagged_for_plagiarism=True).count()
+    
+    # Recent activity
+    recent_attempts = TestAttempt.objects.select_related('user', 'test').order_by('-started_at')[:50]
+    
+    context = {
+        'total_questions': total_questions,
+        'total_users': total_users,
+        'total_attempts': total_attempts,
+        'pass_rate': pass_rate,
+        'flagged_count': flagged_count,
+        'recent_attempts': recent_attempts,
+    }
+    
+    return render(request, 'admin/admin_dashboard.html', context)
+
+
+# Register the custom dashboard URL with Django Admin
+_original_get_urls = admin.site.get_urls
+
+def custom_get_urls():
+    """Add custom dashboard URL to admin site"""
+    from django.urls import path
+    
+    urls = _original_get_urls()
+    custom_urls = [
+        path('dashboard/', admin.site.admin_view(admin_dashboard_view), name='admin_dashboard'),
+    ]
+    return custom_urls + urls
+
+# Override admin site's get_urls method
+admin.site.get_urls = custom_get_urls

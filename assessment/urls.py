@@ -2,6 +2,7 @@
 URL Configuration for Assessment App
 """
 from django.urls import path
+from assessment.admin import admin_dashboard_view
 from assessment import proctoring_views, analytics_views
 from . import views
 
@@ -36,6 +37,9 @@ urlpatterns = [
     # User Analytics
     path('analytics/', analytics_views.user_analytics_dashboard, name='user_analytics'),
     
+    # Admin Dashboard
+    path('admin/dashboard/', admin_dashboard_view, name='admin_dashboard_main'),
+        
     # Admin Analytics (staff only)
     path('admin-analytics/', analytics_views.admin_analytics_dashboard, name='admin_analytics'),
     path('admin-analytics/export/', analytics_views.export_analytics_excel, name='export_analytics'),

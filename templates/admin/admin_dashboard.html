@@ -1,0 +1,494 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    .dashboard-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+        background: #f5f7fa;
+        min-height: 100vh;
+    }
+    
+    .welcome-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .welcome-banner h1 {
+        margin: 0 0 10px 0;
+        font-size: 2.5em;
+    }
+    
+    .welcome-banner p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 1.1em;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border-left: 4px solid;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card.blue { border-left-color: #2196F3; }
+    .stat-card.green { border-left-color: #4CAF50; }
+    .stat-card.orange { border-left-color: #FF9800; }
+    .stat-card.red { border-left-color: #f44336; }
+    .stat-card.purple { border-left-color: #9C27B0; }
+    
+    .stat-icon {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        opacity: 0.9;
+    }
+    
+    .stat-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin: 10px 0;
+        color: #1a1a1a !important;
+    }
+    
+    .stat-card.blue .stat-value { color: #1565C0 !important; }
+    .stat-card.green .stat-value { color: #2E7D32 !important; }
+    .stat-card.orange .stat-value { color: #E65100 !important; }
+    .stat-card.red .stat-value { color: #C62828 !important; }
+    .stat-card.purple .stat-value { color: #6A1B9A !important; }
+    
+    .stat-label {
+        color: #1a1a1a;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+    
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .feature-section {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border: 1px solid #e0e0e0;
+    }
+    
+    .feature-section h2 {
+        margin-top: 0;
+        color: #000;
+        font-size: 1.5em;
+        border-bottom: 3px solid;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+    
+    .feature-section.questions h2 { border-bottom-color: #2196F3; }
+    .feature-section.tests h2 { border-bottom-color: #4CAF50; }
+    .feature-section.analytics h2 { border-bottom-color: #FF9800; }
+    .feature-section.management h2 { border-bottom-color: #9C27B0; }
+    .feature-section.proctoring h2 { border-bottom-color: #f44336; }
+    .feature-section.tools h2 { border-bottom-color: #00BCD4; }
+    
+    .feature-link {
+        display: block;
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        color: #1a1a1a !important;
+        text-decoration: none !important;
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .feature-link:hover {
+        background: #e9ecef;
+        border-left-color: #667eea;
+        padding-left: 20px;
+        color: #667eea !important;
+    }
+    
+    .feature-link:visited {
+        color: #1a1a1a !important;
+    }
+    
+    .feature-link i {
+        margin-right: 10px;
+        width: 20px;
+        display: inline-block;
+        color: #1a1a1a;
+        font-style: normal;
+    }
+    
+    .quick-actions {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        margin-bottom: 30px;
+        border: 1px solid #e0e0e0;
+    }
+    
+    .quick-actions h2 {
+        margin-top: 0;
+        color: #000;
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+    
+    .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .action-btn {
+        display: inline-block;
+        padding: 12px 24px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .action-btn.primary {
+        background: #667eea;
+        color: white;
+    }
+    
+    .action-btn.primary:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .action-btn.secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .action-btn.secondary:hover {
+        background: #5a6268;
+    }
+    
+    .action-btn.success {
+        background: #4CAF50;
+        color: white;
+    }
+    
+    .action-btn.success:hover {
+        background: #45a049;
+    }
+    
+    .action-btn.warning {
+        background: #FF9800;
+        color: white;
+    }
+    
+    .action-btn.warning:hover {
+        background: #e68900;
+    }
+    
+    .recent-activity {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border: 1px solid #e0e0e0;
+    }
+    
+    .recent-activity h2 {
+        margin-top: 0;
+        color: #000;
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+    
+    .activity-container {
+        max-height: 500px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    
+    /* Custom Scrollbar Styling */
+    .activity-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .activity-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .activity-container::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 10px;
+    }
+    
+    .activity-container::-webkit-scrollbar-thumb:hover {
+        background: #5568d3;
+    }
+    
+    /* Firefox Scrollbar */
+    .activity-container {
+        scrollbar-width: thin;
+        scrollbar-color: #667eea #f1f1f1;
+    }
+    
+    .activity-item {
+        padding: 12px 15px;
+        border-left: 3px solid #e0e0e0;
+        margin-bottom: 12px;
+        background: #fafbfc;
+        border-radius: 4px;
+        color: #1a1a1a;
+        font-weight: 500;
+    }
+    
+    .activity-item.success { border-left-color: #4CAF50; }
+    .activity-item.warning { border-left-color: #FF9800; }
+    .activity-item.danger { border-left-color: #f44336; }
+    
+    .activity-time {
+        font-size: 0.85em;
+        color: #555;
+        margin-top: 5px;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <h1>🎯 Admin Command Center</h1>
+        <p>Welcome back, {{ user.username }}! Manage your MRI training platform from here.</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+        <div class="stat-card blue">
+            <div class="stat-icon">📚</div>
+            <div class="stat-value">{{ total_questions }}</div>
+            <div class="stat-label">Total Questions</div>
+        </div>
+        
+        <div class="stat-card green">
+            <div class="stat-icon">👥</div>
+            <div class="stat-value">{{ total_users }}</div>
+            <div class="stat-label">Registered Users</div>
+        </div>
+        
+        <div class="stat-card orange">
+            <div class="stat-icon">📝</div>
+            <div class="stat-value">{{ total_attempts }}</div>
+            <div class="stat-label">Test Attempts</div>
+        </div>
+        
+        <div class="stat-card purple">
+            <div class="stat-icon">✅</div>
+            <div class="stat-value">{{ pass_rate|floatformat:1 }}%</div>
+            <div class="stat-label">Overall Pass Rate</div>
+        </div>
+        
+        {% if flagged_count > 0 %}
+        <div class="stat-card red">
+            <div class="stat-icon">🚨</div>
+            <div class="stat-value">{{ flagged_count }}</div>
+            <div class="stat-label">Flagged Attempts</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h2>⚡ Quick Actions</h2>
+        <div class="action-buttons">
+            <a href="{% url 'admin:assessment_question_add' %}" class="action-btn primary">
+                ➕ Add New Question
+            </a>
+            <a href="{% url 'admin:question_bulk_import' %}" class="action-btn success">
+                📤 Bulk Import Questions
+            </a>
+            <a href="{% url 'admin:assessment_test_add' %}" class="action-btn primary">
+                ➕ Create New Test
+            </a>
+            <a href="{% url 'export_analytics' %}" class="action-btn warning">
+                📥 Export Analytics
+            </a>
+            <a href="{% url 'admin:assessment_cohort_add' %}" class="action-btn secondary">
+                👥 Create Cohort
+            </a>
+        </div>
+    </div>
+
+    <!-- Feature Sections Grid -->
+    <div class="features-grid">
+        <!-- Question Management -->
+        <div class="feature-section questions">
+            <h2>📚 Question Management</h2>
+            <a href="{% url 'admin:assessment_question_changelist' %}" class="feature-link">
+                <i>📋</i> View All Questions
+            </a>
+            <a href="{% url 'admin:assessment_question_add' %}" class="feature-link">
+                <i>➕</i> Add New Question
+            </a>
+            <a href="{% url 'admin:question_bulk_import' %}" class="feature-link">
+                <i>📤</i> Bulk Import from Excel
+            </a>
+            <a href="{% url 'admin:question_download_template' %}" class="feature-link">
+                <i>📥</i> Download Excel Template
+            </a>
+            <a href="{% url 'admin:assessment_questiontopic_changelist' %}" class="feature-link">
+                <i>📑</i> Manage Question Topics
+            </a>
+        </div>
+
+        <!-- Test & Category Management -->
+        <div class="feature-section tests">
+            <h2>📝 Tests & Categories</h2>
+            <a href="{% url 'admin:assessment_testcategory_changelist' %}" class="feature-link">
+                <i>📂</i> Test Categories (Stages)
+            </a>
+            <a href="{% url 'admin:assessment_test_changelist' %}" class="feature-link">
+                <i>📝</i> Manage Tests
+            </a>
+            <a href="{% url 'admin:assessment_test_add' %}" class="feature-link">
+                <i>➕</i> Create New Test
+            </a>
+            <a href="{% url 'admin:assessment_testattempt_changelist' %}" class="feature-link">
+                <i>📊</i> View Test Attempts
+            </a>
+        </div>
+
+        <!-- Analytics & Reports -->
+        <div class="feature-section analytics">
+            <h2>📊 Analytics & Reports</h2>
+            <a href="{% url 'admin_analytics' %}" class="feature-link">
+                <i>📈</i> Full Analytics Dashboard
+            </a>
+            <a href="{% url 'export_analytics' %}" class="feature-link">
+                <i>📥</i> Export to Excel
+            </a>
+            <a href="{% url 'admin:assessment_testattempt_changelist' %}" class="feature-link">
+                <i>📋</i> Test Attempts Overview
+            </a>
+            <a href="{% url 'admin:assessment_question_changelist' %}" class="feature-link">
+                <i>🔥</i> Question Performance
+            </a>
+        </div>
+
+        <!-- User & Cohort Management -->
+        <div class="feature-section management">
+            <h2>👥 User Management</h2>
+            <a href="{% url 'admin:auth_user_changelist' %}" class="feature-link">
+                <i>👤</i> Manage Users
+            </a>
+            <a href="{% url 'admin:assessment_cohort_changelist' %}" class="feature-link">
+                <i>👥</i> Manage Cohorts
+            </a>
+            <a href="{% url 'admin:assessment_cohortmembership_changelist' %}" class="feature-link">
+                <i>🔗</i> Cohort Memberships
+            </a>
+            <a href="{% url 'admin:auth_user_add' %}" class="feature-link">
+                <i>➕</i> Add New User
+            </a>
+        </div>
+
+        <!-- Proctoring & Security -->
+        <div class="feature-section proctoring">
+            <h2>🔒 Proctoring & Security</h2>
+            <a href="{% url 'admin:assessment_proctoringevent_changelist' %}" class="feature-link">
+                <i>📷</i> Proctoring Events
+            </a>
+            <a href="{% url 'admin:assessment_plagiarismflag_changelist' %}" class="feature-link">
+                <i>🚨</i> Plagiarism Flags
+            </a>
+            {% if flagged_count > 0 %}
+            <a href="{% url 'admin:assessment_testattempt_changelist' %}?flagged_for_plagiarism__exact=1" class="feature-link" style="background: #fff3cd;">
+                <i>⚠️</i> Review Flagged Attempts ({{ flagged_count }})
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- System Tools -->
+        <div class="feature-section tools">
+            <h2>🛠️ System Tools</h2>
+            <a href="{% url 'admin:index' %}" class="feature-link">
+                <i>🏠</i> Django Admin Home
+            </a>
+            <a href="{% url 'admin:auth_group_changelist' %}" class="feature-link">
+                <i>🔐</i> User Groups & Permissions
+            </a>
+            <a href="/admin/" class="feature-link">
+                <i>⚙️</i> All Admin Models
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    {% if recent_attempts %}
+    <div class="recent-activity">
+        <h2>🕐 Recent Activity (Showing {{ recent_attempts|length }} most recent)</h2>
+        <div class="activity-container">
+            {% for attempt in recent_attempts %}
+            <div class="activity-item {% if attempt.flagged_for_plagiarism %}danger{% elif attempt.passed %}success{% else %}warning{% endif %}">
+                <strong>{{ attempt.user.username }}</strong> 
+                {% if attempt.status == 'completed' %}
+                    completed <strong>{{ attempt.test.title }}</strong>
+                    {% if attempt.score %}
+                        - Score: <strong>{{ attempt.score|floatformat:1 }}%</strong>
+                        {% if attempt.passed %}✅{% else %}❌{% endif %}
+                    {% endif %}
+                {% else %}
+                    started <strong>{{ attempt.test.title }}</strong>
+                {% endif %}
+                {% if attempt.flagged_for_plagiarism %}
+                    <span style="color: #f44336; font-weight: bold;">🚨 FLAGGED</span>
+                {% endif %}
+                <div class="activity-time">{{ attempt.started_at|timesince }} ago</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

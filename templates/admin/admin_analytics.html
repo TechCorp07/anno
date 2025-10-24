@@ -1,0 +1,291 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .stat-label {
+        color: #666;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .section {
+        background: white;
+        margin: 20px 0;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .section h2 {
+        margin-top: 0;
+        color: #333;
+        border-bottom: 2px solid #417690;
+        padding-bottom: 10px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    th {
+        background: #f5f5f5;
+        padding: 12px;
+        text-align: left;
+        border-bottom: 2px solid #ddd;
+        font-weight: 600;
+    }
+    td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #eee;
+    }
+    tr:hover {
+        background: #f9f9f9;
+    }
+    .progress-bar {
+        height: 20px;
+        background: #e0e0e0;
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+    }
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4CAF50, #45a049);
+        transition: width 0.3s ease;
+    }
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+    .export-button {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #417690;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        margin: 10px 5px;
+    }
+    .export-button:hover {
+        background: #2e5569;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content" style="padding: 20px;">
+    <h1>📊 Admin Analytics Dashboard</h1>
+    <p style="color: #666; margin-bottom: 20px;">Comprehensive overview of test performance and user analytics</p>
+    
+    <!-- Export Buttons -->
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'export_analytics' %}" class="export-button">📥 Export to Excel</a>
+        <a href="{% url 'admin:assessment_testattempt_changelist' %}" class="export-button" style="background: #666;">← Back to Test Attempts</a>
+    </div>
+
+    <!-- Overview Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card" style="border-left: 4px solid #2196F3;">
+            <div class="stat-label">Total Attempts</div>
+            <div class="stat-value" style="color: #2196F3;">{{ total_attempts }}</div>
+        </div>
+        
+        <div class="stat-card" style="border-left: 4px solid #4CAF50;">
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value" style="color: #4CAF50;">{{ total_users }}</div>
+        </div>
+        
+        <div class="stat-card" style="border-left: 4px solid #FF9800;">
+            <div class="stat-label">Overall Pass Rate</div>
+            <div class="stat-value" style="color: #FF9800;">{{ pass_rate|floatformat:1 }}%</div>
+        </div>
+    </div>
+
+    <!-- Category Performance -->
+    {% if category_stats %}
+    <div class="section">
+        <h2>Performance by Category (Stages)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Stage</th>
+                    <th>Category Name</th>
+                    <th>Total Attempts</th>
+                    <th>Pass Rate</th>
+                    <th>Average Score</th>
+                    <th>Performance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in category_stats %}
+                <tr>
+                    <td><strong>Stage {{ cat.stage }}</strong></td>
+                    <td>{{ cat.name }}</td>
+                    <td>{{ cat.attempts }}</td>
+                    <td>
+                        <span class="badge {% if cat.pass_rate >= 70 %}badge-success{% elif cat.pass_rate >= 50 %}badge-warning{% else %}badge-danger{% endif %}">
+                            {{ cat.pass_rate|floatformat:1 }}%
+                        </span>
+                    </td>
+                    <td>{{ cat.avg_score|floatformat:1 }}%</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ cat.avg_score }}%; {% if cat.avg_score >= 70 %}background: #4CAF50;{% elif cat.avg_score >= 50 %}background: #FF9800;{% else %}background: #f44336;{% endif %}"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="section">
+        <h2>Performance by Category</h2>
+        <p style="color: #666;">No completed tests yet.</p>
+    </div>
+    {% endif %}
+
+    <!-- Hardest Questions -->
+    {% if hardest_questions %}
+    <div class="section">
+        <h2>🔥 Most Difficult Questions (20 Hardest)</h2>
+        <p style="color: #666; margin-bottom: 15px;">Questions with lowest success rates - consider reviewing or updating these</p>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Question</th>
+                    <th style="width: 120px;">Difficulty Level</th>
+                    <th style="width: 120px;">Total Answers</th>
+                    <th style="width: 120px;">Success Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in hardest_questions %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <a href="{% url 'admin:assessment_question_change' q.question__id %}" style="color: #417690; text-decoration: none;">
+                            {{ q.question__question_text|truncatewords:15 }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if q.question__difficulty_level == 5 %}⭐⭐⭐⭐⭐
+                        {% elif q.question__difficulty_level == 4 %}⭐⭐⭐⭐
+                        {% elif q.question__difficulty_level == 3 %}⭐⭐⭐
+                        {% elif q.question__difficulty_level == 2 %}⭐⭐
+                        {% else %}⭐{% endif %}
+                    </td>
+                    <td>{{ q.total_answers }}</td>
+                    <td>
+                        <span class="badge {% if q.success_rate >= 60 %}badge-success{% elif q.success_rate >= 40 %}badge-warning{% else %}badge-danger{% endif %}">
+                            {{ q.success_rate|floatformat:1 }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Flagged Attempts for Plagiarism -->
+    {% if flagged_attempts %}
+    <div class="section">
+        <h2>🚨 Flagged Attempts (Plagiarism Detection)</h2>
+        <p style="color: #666; margin-bottom: 15px;">Test attempts flagged for potential plagiarism - requires manual review</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Test</th>
+                    <th>Completed At</th>
+                    <th>Score</th>
+                    <th>Similarity</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in flagged_attempts %}
+                <tr style="background: #fff3cd;">
+                    <td>
+                        <a href="{% url 'admin:auth_user_change' attempt.user.id %}" style="color: #417690;">
+                            {{ attempt.user.username }}
+                        </a>
+                    </td>
+                    <td>{{ attempt.test.title }}</td>
+                    <td>{{ attempt.completed_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ attempt.score|floatformat:1 }}%</td>
+                    <td>
+                        <span class="badge badge-danger">
+                            {% if attempt.similarity_score %}{{ attempt.similarity_score|floatformat:1 }}%{% else %}N/A{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'admin:assessment_testattempt_change' attempt.id %}" style="color: #417690;">Review →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="section">
+        <h2>🚨 Flagged Attempts</h2>
+        <p style="color: #4CAF50;">✓ No flagged attempts - all tests appear legitimate!</p>
+    </div>
+    {% endif %}
+
+    <!-- Summary & Recommendations -->
+    <div class="section" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
+        <h2>📋 Summary & Recommendations</h2>
+        <ul style="line-height: 2;">
+            <li><strong>Total Test Activity:</strong> {{ total_attempts }} attempts from {{ total_users }} users</li>
+            <li><strong>Overall Success:</strong> {{ pass_rate|floatformat:1 }}% pass rate across all categories</li>
+            {% if category_stats %}
+            <li><strong>Best Performing Stage:</strong> 
+                {% with best=category_stats|dictsort:"pass_rate"|last %}
+                    Stage {{ best.stage }} - {{ best.name }} ({{ best.pass_rate|floatformat:1 }}% pass rate)
+                {% endwith %}
+            </li>
+            <li><strong>Needs Improvement:</strong> 
+                {% with worst=category_stats|dictsort:"pass_rate"|first %}
+                    Stage {{ worst.stage }} - {{ worst.name }} ({{ worst.pass_rate|floatformat:1 }}% pass rate)
+                {% endwith %}
+            </li>
+            {% endif %}
+            {% if hardest_questions %}
+            <li><strong>Question Review:</strong> {{ hardest_questions|length }} questions have low success rates and may need review</li>
+            {% endif %}
+            {% if flagged_attempts %}
+            <li><strong>⚠️ Attention Required:</strong> {{ flagged_attempts|length }} attempts flagged for potential plagiarism</li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
