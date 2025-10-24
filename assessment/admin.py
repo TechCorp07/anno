@@ -316,11 +316,12 @@ class QuestionAdmin(admin.ModelAdmin):
 
 @admin.register(Cohort)
 class CohortAdmin(admin.ModelAdmin):
-    list_display = ['name', 'start_date', 'end_date', 'member_count', 'enabled_categories_list', 'is_active']
+    list_display = ['name', 'start_date', 'end_date', 'member_count', 'enabled_categories_list', 'is_active', 'cohort_actions']
     list_filter = ['is_active', 'start_date']
     search_fields = ['name', 'description']
     filter_horizontal = ['enabled_categories']
     list_editable = ['is_active']
+    change_list_template = 'admin/cohort_changelist.html'
     
     def member_count(self, obj):
         return obj.members.count()
@@ -331,13 +332,112 @@ class CohortAdmin(admin.ModelAdmin):
         return ', '.join([f"Stage {c.stage_number}" for c in categories])
     enabled_categories_list.short_description = 'Enabled Stages'
 
-
+    def get_urls(self):
+        """Add custom URL for bulk user assignment"""
+        urls = super().get_urls()
+        custom_urls = [
+            path('<int:cohort_id>/bulk-add-users/', 
+                 self.admin_site.admin_view(self.bulk_add_users_view), 
+                 name='cohort_bulk_add_users'),
+        ]
+        return custom_urls + urls
+    
+    def bulk_add_users_view(self, request, cohort_id):
+        """View for bulk adding users to a cohort"""
+        from django.contrib.auth.models import User
+        from django.db import transaction
+        from django.utils import timezone
+        
+        cohort = self.get_object(request, cohort_id)
+        
+        if request.method == 'POST':
+            user_ids = request.POST.getlist('users')
+            
+            if not user_ids:
+                messages.error(request, 'No users selected.')
+                return redirect(reverse('admin:cohort_bulk_add_users', args=[cohort_id]))
+            
+            # Bulk create memberships
+            try:
+                with transaction.atomic():
+                    added_count = 0
+                    skipped_count = 0
+                    
+                    for user_id in user_ids:
+                        user = User.objects.get(id=user_id)
+                        
+                        # Check if already a member
+                        if CohortMembership.objects.filter(user=user, cohort=cohort).exists():
+                            skipped_count += 1
+                            continue
+                        
+                        # Create membership
+                        CohortMembership.objects.create(
+                            user=user,
+                            cohort=cohort,
+                            joined_at=timezone.now()
+                        )
+                        added_count += 1
+                    
+                    success_msg = f'Successfully added {added_count} user(s) to cohort "{cohort.name}".'
+                    if skipped_count > 0:
+                        success_msg += f' Skipped {skipped_count} user(s) who were already members.'
+                    
+                    messages.success(request, success_msg)
+                    return redirect(reverse('admin:assessment_cohort_change', args=[cohort_id]))
+                    
+            except Exception as e:
+                messages.error(request, f'Error adding users: {str(e)}')
+                return redirect(reverse('admin:cohort_bulk_add_users', args=[cohort_id]))
+        
+        # GET request - show user selection form
+        # Get all users not yet in this cohort
+        existing_member_ids = cohort.members.values_list('user_id', flat=True)
+        available_users = User.objects.exclude(id__in=existing_member_ids).order_by('username')
+        
+        # Get current members for display
+        current_members = cohort.members.select_related('user').order_by('-joined_at')
+        
+        context = {
+            'cohort': cohort,
+            'available_users': available_users,
+            'current_members': current_members,
+            'title': f'Bulk Add Users to {cohort.name}',
+            'opts': self.model._meta,
+            'has_change_permission': self.has_change_permission(request, cohort),
+        }
+        
+        return render(request, 'admin/cohort_bulk_add_users.html', context)
+    
+    def cohort_actions(self, obj):
+        """Display action links for cohort"""
+        bulk_add_url = reverse('admin:cohort_bulk_add_users', args=[obj.id])
+        return format_html(
+            '<a href="{}" class="button" style="background-color: #10b981; color: white; padding: 5px 10px; border-radius: 4px;">👥 Bulk Add Users</a>',
+            bulk_add_url
+        )
+    cohort_actions.short_description = 'Actions'
+    
 @admin.register(CohortMembership)
 class CohortMembershipAdmin(admin.ModelAdmin):
     list_display = ['user', 'cohort', 'joined_at']
     list_filter = ['cohort', 'joined_at']
-    search_fields = ['user__username', 'cohort__name']
+    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name', 'cohort__name']
     raw_id_fields = ['user']
+    
+    actions = ['bulk_remove_from_cohort']
+    list_per_page = 100
+    
+    def bulk_remove_from_cohort(self, request, queryset):
+        """Remove selected users from their cohorts"""
+        count = queryset.count()
+        queryset.delete()
+        self.message_user(
+            request,
+            f'Successfully removed {count} user(s) from their cohort(s).',
+            messages.SUCCESS
+        )
+    bulk_remove_from_cohort.short_description = 'Remove selected users from cohorts'
 
 
 class TestTopicDistributionInline(admin.TabularInline):

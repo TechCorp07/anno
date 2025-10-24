@@ -1,0 +1,68 @@
+{% extends "admin/change_list.html" %}
+
+{% block content_title %}
+<h1>{{ title }}</h1>
+<p style="margin-top: 8px; color: #6b7280;">
+    Manage cohorts and assign users to test categories
+</p>
+{% endblock %}
+
+{% block result_list %}
+<style>
+    .cohort-actions-bar {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+    
+    .cohort-actions-bar h3 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #374151;
+        flex: 1;
+    }
+    
+    .quick-action-btn {
+        padding: 8px 16px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    
+    .quick-action-btn:hover {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+    
+    .info-badge {
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+</style>
+
+<div class="cohort-actions-bar">
+    <h3>💡 Quick Tip</h3>
+    <span class="info-badge">Click "Bulk Add Users" in the Actions column to add multiple users at once</span>
+</div>
+
+{{ block.super }}
+{% endblock %}
