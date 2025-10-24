@@ -103,7 +103,20 @@ const questionsWithImages = new Set();
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('=== Test Page Initialization ===');
     
-    // Initialize proctoring
+    // CRITICAL: Hide exam content until proctoring is verified
+    const examContent = document.getElementById('exam-content');
+    const loadingScreen = document.getElementById('loading-screen');
+    
+    if (examContent) {
+        examContent.style.display = 'none';
+    }
+    
+    // Show loading screen
+    if (loadingScreen) {
+        loadingScreen.style.display = 'block';
+    }
+    
+    // Initialize proctoring - MUST succeed for exam to start
     try {
         const proctoring = new ProctoringSystem(
             {{ attempt.id }},
@@ -114,16 +127,60 @@ document.addEventListener('DOMContentLoaded', async function() {
         const initialized = await proctoring.initialize();
         
         if (!initialized) {
-            console.warn('Proctoring initialization failed, but continuing test...');
+            // CRITICAL: Proctoring failed - DO NOT START EXAM
+            console.error('❌ EXAM BLOCKED: Proctoring initialization failed');
+            
+            // Hide loading screen
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+            
+            // Keep exam content hidden
+            // Error message is already shown by proctoring.js showPermissionError()
+            
+            // Prevent any exam interaction
+            if (examContent) {
+                examContent.remove();
+            }
+            
+            return; // Stop execution - exam cannot start
         }
         
+        // SUCCESS: Proctoring initialized - Start exam
+        console.log('✓ EXAM STARTED: Proctoring verified');
+        
+        // Hide loading screen
+        if (loadingScreen) {
+            loadingScreen.style.display = 'none';
+        }
+        
+        // Show exam content
+        if (examContent) {
+            examContent.style.display = 'block';
+        }
+        
+        // Setup cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (proctoring) {
                 proctoring.cleanup();
             }
         });
+        
     } catch (error) {
-        console.error('Proctoring error:', error);
+        console.error('❌ EXAM BLOCKED: Proctoring error:', error);
+        
+        // Hide loading screen
+        if (loadingScreen) {
+            loadingScreen.style.display = 'none';
+        }
+        
+        // Show generic error
+        alert('Unable to initialize exam proctoring. Please ensure camera and microphone permissions are enabled, then refresh the page.');
+        
+        // Prevent exam from starting
+        if (examContent) {
+            examContent.remove();
+        }
     }
     
     // Track which DICOM questions have images
@@ -337,6 +394,27 @@ function submitDICOMAnswer(questionId, coordinates) {
 {% block title %}Taking Test - {{ attempt.test.title }}{% endblock %}
 
 {% block content %}
+    <div id="loading-screen" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    ">
+        <div style="text-align: center;">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Initializing Proctoring</h2>
+            <p class="text-gray-600">Please allow camera and microphone access...</p>
+            <p class="text-sm text-gray-500 mt-4">This may take a few seconds</p>
+        </div>
+    </div>
+ <div id="exam-content" style="display: none;">
 <div class="content-wrapper" x-data="testTimer({{ time_remaining }})">
     <!-- Timer and Header -->
     <div class="sticky-header bg-white rounded-lg shadow-lg p-6 mb-6">
@@ -570,6 +648,8 @@ function submitDICOMAnswer(questionId, coordinates) {
             </div>
         </div>
     </form>
+  </div>
+
 </div>
 
 <script>

@@ -388,12 +388,78 @@ class AnswerInline(admin.TabularInline):
 @admin.register(TestAttempt)
 class TestAttemptAdmin(admin.ModelAdmin):
     list_display = ['user', 'test', 'cohort', 'status', 'score_display', 'passed', 
-                    'flagged_for_plagiarism', 'started_at']
-    list_filter = ['status', 'passed', 'flagged_for_plagiarism', 'test__category', 'started_at']
+                    'flagged_for_plagiarism', 'started_at', 'consent_status', 'view_proctoring']
+    list_filter = ['status', 'passed', 'flagged_for_plagiarism','consent_given', 'test__category', 'started_at']
     search_fields = ['user__username', 'test__title', 'ip_address']
     readonly_fields = ['user', 'test', 'started_at', 'completed_at', 'time_spent_seconds', 
                        'ip_address', 'user_agent', 'similarity_score']
     inlines = [AnswerInline]
+    
+    def consent_status(self, obj):
+        """Display consent acceptance status"""
+        if obj.consent_given:
+            return format_html(
+                '<span style="color: #10b981;">✓ Accepted</span><br><small>{}</small>',
+                obj.consent_timestamp.strftime('%Y-%m-%d %H:%M') if obj.consent_timestamp else ''
+            )
+        return format_html('<span style="color: #dc2626;">✗ Not Given</span>')
+    consent_status.short_description = 'Consent'
+    
+    def view_proctoring(self, obj):
+        """Link to view all proctoring events"""
+        count = obj.proctoring_events.count()
+        critical = obj.proctoring_events.filter(severity='critical').count()
+        url = f'/admin/assessment/proctoringevent/?attempt__id__exact={obj.id}'
+        
+        if critical > 0:
+            return format_html(
+                '<a href="{}" style="color: #dc2626; font-weight: bold;">🚨 {} events ({} critical)</a>',
+                url, count, critical
+            )
+        return format_html(
+            '<a href="{}">{} events</a>',
+            url, count
+        )
+    view_proctoring.short_description = 'Proctoring'
+    
+    def status_display(self, obj):
+        """Display status with color coding"""
+        colors = {
+            'completed': '#10b981',
+            'in_progress': '#3b82f6',
+            'flagged': '#dc2626',
+            'expired': '#6b7280',
+        }
+        return format_html(
+            '<span style="color: {}; font-weight: 600;">{}</span>',
+            colors.get(obj.status, '#000'),
+            obj.get_status_display()
+        )
+    status_display.short_description = 'Status'
+    
+    fieldsets = (
+        ('Attempt Details', {
+            'fields': ('user', 'test', 'cohort', 'status')
+        }),
+        ('Results', {
+            'fields': ('score', 'passed')
+        }),
+        ('Proctoring & Consent', {
+            'fields': (
+                'consent_given', 
+                'consent_timestamp',
+                'ip_address', 
+                'user_agent',
+            ),
+            'description': 'Consent acceptance and proctoring information'
+        }),
+        ('Plagiarism Detection', {
+            'fields': ('similarity_score', 'flagged_for_plagiarism')
+        }),
+        ('Timing', {
+            'fields': ('started_at', 'completed_at', 'time_spent_seconds')
+        }),
+    )
     
     def get_urls(self):
         urls = super().get_urls()
@@ -420,7 +486,8 @@ class TestAttemptAdmin(admin.ModelAdmin):
     def score_display(self, obj):
         if obj.score is not None:
             color = 'green' if obj.passed else 'red'
-            return format_html('<b style="color: {};">{:.2f}%</b>', color, float(obj.score))
+            score_str = f'{float(obj.score):.2f}%'
+            return format_html('<b style="color: {};">{}</b>', color, score_str)
         return '-'
     
     score_display.short_description = 'Score'
@@ -483,22 +550,158 @@ class TestAttemptAdmin(admin.ModelAdmin):
 
 @admin.register(ProctoringEvent)
 class ProctoringEventAdmin(admin.ModelAdmin):
-    list_display = ['attempt_user', 'event_type', 'timestamp', 'has_image']
-    list_filter = ['event_type', 'timestamp']
-    search_fields = ['attempt__user__username']
-    readonly_fields = ['attempt', 'event_type', 'image_file', 'metadata', 'timestamp']
+    """
+    Enhanced admin for proctoring events with severity highlighting
+    """
+    list_display = [
+        'severity_icon',
+        'attempt_user',
+        'event_type_display', 
+        'severity',
+        'timestamp',
+        'has_image',
+        'view_details'
+    ]
+    list_filter = [
+        'severity',
+        'event_type',
+        'timestamp',
+        'attempt__test',
+    ]
+    search_fields = [
+        'attempt__user__username',
+        'attempt__user__email',
+        'event_type',
+        'metadata',
+    ]
+    readonly_fields = [
+        'attempt',
+        'event_type',
+        'image_file',
+        'metadata',
+        'severity',
+        'timestamp',
+        'formatted_metadata',
+        'image_preview',
+    ]
+    date_hierarchy = 'timestamp'
+    
+    def severity_icon(self, obj):
+        """Display colored icon based on severity"""
+        icons = {
+            'critical': '🚨',
+            'warning': '⚠️',
+            'info': 'ℹ️',
+        }
+        colors = {
+            'critical': '#dc2626',
+            'warning': '#f59e0b',
+            'info': '#3b82f6',
+        }
+        return format_html(
+            '<span style="font-size: 20px; color: {};">{}</span>',
+            colors.get(obj.severity, '#000'),
+            icons.get(obj.severity, '•')
+        )
+    severity_icon.short_description = ''
     
     def attempt_user(self, obj):
-        return obj.attempt.user.username
+        """Display username with link to test attempt"""
+        url = f'/admin/assessment/testattempt/{obj.attempt.id}/change/'
+        return format_html(
+            '<a href="{}">{}</a>',
+            url,
+            obj.attempt.user.username
+        )
     attempt_user.short_description = 'User'
     
-    def has_image(self, obj):
-        return bool(obj.image_file)
-    has_image.boolean = True
-    has_image.short_description = 'Image'
+    def event_type_display(self, obj):
+        """Display event type with color coding"""
+        colors = {
+            'camera_disabled': '#dc2626',
+            'camera_permission_denied': '#dc2626',
+            'tab_switch': '#f59e0b',
+            'fullscreen_exit': '#f59e0b',
+            'camera_access_granted': '#10b981',
+            'proctoring_initialized': '#10b981',
+            'consent_accepted': '#10b981',
+        }
+        color = colors.get(obj.event_type, '#6b7280')
+        return format_html(
+            '<span style="color: {}; font-weight: 600;">{}</span>',
+            color,
+            obj.get_event_type_display()
+        )
+    event_type_display.short_description = 'Event Type'
     
-    def has_add_permission(self, request):
-        return False
+    def has_image(self, obj):
+        """Show if event has image attachment"""
+        if obj.image_file:
+            return format_html(
+                '<span style="color: #10b981;">✓ Image</span>'
+            )
+        return format_html(
+            '<span style="color: #9ca3af;">-</span>'
+        )
+    has_image.short_description = 'Snapshot'
+    
+    def view_details(self, obj):
+        """Link to view full details"""
+        url = f'/admin/assessment/proctoringevent/{obj.id}/change/'
+        return format_html(
+            '<a href="{}">View Details →</a>',
+            url
+        )
+    view_details.short_description = 'Actions'
+    
+    def formatted_metadata(self, obj):
+        """Display metadata in readable format"""
+        import json
+        if obj.metadata:
+            formatted = json.dumps(obj.metadata, indent=2)
+            return format_html('<pre style="background: #f3f4f6; padding: 10px; border-radius: 4px;">{}</pre>', formatted)
+        return '-'
+    formatted_metadata.short_description = 'Event Metadata'
+    
+    def image_preview(self, obj):
+        """Show image preview if available"""
+        if obj.image_file:
+            return format_html(
+                '<img src="{}" style="max-width: 400px; max-height: 400px; border: 1px solid #ddd; border-radius: 4px;" />',
+                obj.image_file.url
+            )
+        return 'No image'
+    image_preview.short_description = 'Image Preview'
+    
+    fieldsets = (
+        ('Event Information', {
+            'fields': ('attempt', 'event_type', 'severity', 'timestamp')
+        }),
+        ('Image Data', {
+            'fields': ('image_file', 'image_preview'),
+            'classes': ('collapse',),
+        }),
+        ('Metadata', {
+            'fields': ('formatted_metadata',),
+            'classes': ('collapse',),
+        }),
+    )
+    
+    # Custom action to mark critical events as reviewed
+    actions = ['mark_as_reviewed']
+    
+    def mark_as_reviewed(self, request, queryset):
+        # Add a 'reviewed' flag to metadata
+        count = 0
+        for event in queryset:
+            if not event.metadata:
+                event.metadata = {}
+            event.metadata['reviewed_by'] = request.user.username
+            event.metadata['reviewed_at'] = timezone.now().isoformat()
+            event.save()
+            count += 1
+        self.message_user(request, f'{count} events marked as reviewed.')
+    mark_as_reviewed.short_description = 'Mark selected events as reviewed'
 
 
 @admin.register(PlagiarismFlag)

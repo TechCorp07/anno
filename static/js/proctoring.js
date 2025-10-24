@@ -1,8 +1,3 @@
-/**
- * MRI Training Platform - Proctoring System
- * Includes: Webcam snapshots, browser lockdown, tab monitoring, IP tracking
- */
-
 class ProctoringSystem {
     constructor(attemptId, snapshotIntervalSeconds = 180, csrfToken) {
         this.attemptId = attemptId;
@@ -10,9 +5,12 @@ class ProctoringSystem {
         this.csrfToken = csrfToken;
         this.videoStream = null;
         this.snapshotTimer = null;
+        this.streamMonitorTimer = null;
         this.warningCount = 0;
         this.maxWarnings = 3;
         this.isFullscreen = false;
+        this.permissionsGranted = false;
+        this.cameraDisabledWarningShown = false;
         
         // URLs
         this.snapshotUploadUrl = `/proctoring/snapshot/${attemptId}/`;
@@ -21,60 +19,358 @@ class ProctoringSystem {
     
     /**
      * Initialize all proctoring features
+     * CRITICAL: Returns false if camera permission denied - exam should NOT start
      */
     async initialize() {
         try {
-            // 1. Request webcam access
-            await this.requestWebcamAccess();
+            // 1. Request webcam access (CAMERA ONLY - NO MICROPHONE)
+            const permissionsGranted = await this.requestCameraAccess();
             
-            // 2. Setup browser lockdown
+            if (!permissionsGranted) {
+                console.error('Camera permission denied - cannot start exam');
+                this.showPermissionError();
+                return false;
+            }
+            
+            this.permissionsGranted = true;
+            
+            // 2. Start continuous camera monitoring
+            this.startCameraMonitoring();
+            
+            // 3. Setup browser lockdown
             this.setupBrowserLockdown();
             
-            // 3. Force fullscreen
+            // 4. Force fullscreen
             this.enterFullscreen();
             
-            // 4. Start snapshot timer
+            // 5. Start snapshot timer
             this.startSnapshotTimer();
             
-            // 5. Log IP address
+            // 6. Log IP address
             await this.logIPAddress();
             
-            console.log('Proctoring system initialized successfully');
+            // 7. Log successful initialization
+            await this.logEvent('proctoring_initialized', {
+                severity: 'info',
+                snapshot_interval: this.snapshotIntervalSeconds,
+                features: ['camera_monitoring', 'browser_lockdown', 'fullscreen', 'screenshots']
+            });
+            
+            console.log('✓ Proctoring system initialized successfully');
             return true;
         } catch (error) {
-            console.error('Proctoring initialization failed:', error);
-            alert('Unable to initialize proctoring. Please check your webcam permissions and try again.');
+            console.error('✗ Proctoring initialization failed:', error);
+            this.showPermissionError();
             return false;
         }
     }
     
     /**
-     * Request webcam access
+     * Request camera access only (NO MICROPHONE)
+     * REQUIRED for exam to start
      */
-    async requestWebcamAccess() {
+    async requestCameraAccess() {
         try {
-            this.videoStream = await navigator.mediaDevices.getUserMedia({
+            // Request video only - no audio
+            const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 640 },
                     height: { ideal: 480 }
                 },
-                audio: false
+                audio: false  // NO MICROPHONE REQUIRED
             });
             
-            console.log('Webcam access granted');
+            // Store video stream
+            this.videoStream = stream;
+            
+            // Verify video track is present and active
+            const videoTrack = stream.getVideoTracks()[0];
+            if (!videoTrack || !videoTrack.enabled) {
+                console.error('Camera not available or disabled');
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                return false;
+            }
+            
+            // Log camera access granted
+            await this.logEvent('camera_access_granted', {
+                severity: 'info',
+                video_width: videoTrack.getSettings().width,
+                video_height: videoTrack.getSettings().height,
+                device_id: videoTrack.getSettings().deviceId || 'unknown'
+            });
+            
+            console.log('✓ Camera access granted');
             return true;
         } catch (error) {
-            console.error('Webcam access denied:', error);
-            throw new Error('Webcam access is required for this test');
+            console.error('✗ Camera access denied:', error);
+            
+            // Log specific error types
+            if (error.name === 'NotAllowedError') {
+                console.error('User denied camera permission');
+            } else if (error.name === 'NotFoundError') {
+                console.error('No camera found on device');
+            } else if (error.name === 'NotReadableError') {
+                console.error('Camera is already in use');
+            }
+            
+            return false;
         }
+    }
+    
+    /**
+     * Continuously monitor camera stream to detect if user turns it off
+     * CRITICAL: This prevents users from disabling camera during exam
+     */
+    startCameraMonitoring() {
+        // Check camera status every 2 seconds
+        this.streamMonitorTimer = setInterval(() => {
+            if (!this.videoStream) {
+                this.handleCameraDisabled();
+                return;
+            }
+            
+            const videoTrack = this.videoStream.getVideoTracks()[0];
+            
+            // Check if track exists and is enabled
+            if (!videoTrack) {
+                this.handleCameraDisabled();
+                return;
+            }
+            
+            // Check if track is still live
+            if (videoTrack.readyState === 'ended') {
+                this.handleCameraDisabled();
+                return;
+            }
+            
+            // Check if track is enabled
+            if (!videoTrack.enabled) {
+                this.handleCameraDisabled();
+                return;
+            }
+            
+            // Track is active and enabled - all good
+            console.log('✓ Camera monitoring: Active');
+        }, 2000); // Check every 2 seconds
+        
+        // Also listen for track ended event
+        const videoTrack = this.videoStream.getVideoTracks()[0];
+        if (videoTrack) {
+            videoTrack.addEventListener('ended', () => {
+                this.handleCameraDisabled();
+            });
+        }
+        
+        console.log('✓ Camera monitoring started');
+    }
+    
+    /**
+     * Handle camera being disabled during exam
+     * CRITICAL: This prevents cheating by disabling camera
+     */
+    handleCameraDisabled() {
+        if (this.cameraDisabledWarningShown) {
+            return; // Already shown warning
+        }
+        
+        this.cameraDisabledWarningShown = true;
+        
+        // Log the event with CRITICAL severity
+        this.logEvent('camera_disabled', {
+            severity: 'critical',
+            timestamp: new Date().toISOString(),
+            note: 'Camera was disabled or disconnected during exam'
+        });
+        
+        // Show critical warning
+        this.showCameraDisabledWarning();
+        
+        console.error('❌ CRITICAL: Camera disabled during exam');
+    }
+    
+    /**
+     * Show critical warning when camera is disabled
+     */
+    showCameraDisabledWarning() {
+        const warningDiv = document.createElement('div');
+        warningDiv.id = 'camera-disabled-warning';
+        warningDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 4px solid #dc2626;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            z-index: 10001;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+        `;
+        
+        warningDiv.innerHTML = `
+            <div style="text-align: center;">
+                <div style="font-size: 64px; margin-bottom: 15px;">🚨</div>
+                <h2 style="color: #dc2626; margin-bottom: 15px; font-size: 28px; font-weight: bold;">
+                    CAMERA DISABLED!
+                </h2>
+                <p style="color: #374151; margin-bottom: 20px; line-height: 1.6; font-size: 16px;">
+                    <strong>Your camera has been turned off during the exam.</strong>
+                    <br><br>
+                    This is a serious violation of exam proctoring rules.
+                    <br><br>
+                    <span style="color: #dc2626; font-weight: bold;">
+                    This incident has been logged and your exam may be disqualified.
+                    </span>
+                </p>
+                <div style="margin-top: 20px; padding: 15px; background: #fee2e2; border-radius: 6px;">
+                    <p style="color: #991b1b; font-size: 14px; margin: 0; font-weight: bold;">
+                        Please refresh the page immediately and restart the exam with your camera enabled.
+                    </p>
+                </div>
+                <button onclick="location.reload()" style="
+                    background: #dc2626;
+                    color: white;
+                    border: none;
+                    padding: 15px 30px;
+                    border-radius: 6px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    margin-top: 20px;
+                    width: 100%;
+                ">
+                    Refresh & Restart Exam
+                </button>
+            </div>
+        `;
+        
+        // Add dark overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'camera-warning-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10000;
+        `;
+        
+        // Remove any existing warnings first
+        const existingWarning = document.getElementById('camera-disabled-warning');
+        const existingOverlay = document.getElementById('camera-warning-overlay');
+        if (existingWarning) existingWarning.remove();
+        if (existingOverlay) existingOverlay.remove();
+        
+        document.body.appendChild(overlay);
+        document.body.appendChild(warningDiv);
+    }
+    
+    /**
+     * Show clear error message when camera permission is initially denied
+     */
+    showPermissionError() {
+        // Log permission denied event
+        this.logEvent('camera_permission_denied', {
+            severity: 'critical',
+            timestamp: new Date().toISOString(),
+            note: 'User denied camera permission - exam cannot start'
+        }).catch(err => console.error('Failed to log permission denied:', err));
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 3px solid #dc2626;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 500px;
+            z-index: 10000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        `;
+        
+        errorDiv.innerHTML = `
+            <div style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 15px;">📷</div>
+                <h2 style="color: #dc2626; margin-bottom: 15px; font-size: 24px;">
+                    Camera Access Required
+                </h2>
+                <p style="color: #374151; margin-bottom: 20px; line-height: 1.6;">
+                    This exam requires <strong>camera access</strong> for proctoring purposes.
+                    <br><br>
+                    Please enable camera permissions and refresh the page to start the exam.
+                </p>
+                <button onclick="location.reload()" style="
+                    background: #2563eb;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    margin-right: 10px;
+                ">
+                    Refresh & Retry
+                </button>
+                <button onclick="window.location.href='/dashboard/'" style="
+                    background: #6b7280;
+                    color: white;
+                    border: none;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    cursor: pointer;
+                ">
+                    Back to Dashboard
+                </button>
+                <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 6px;">
+                    <p style="color: #92400e; font-size: 14px; margin: 0;">
+                        <strong>Troubleshooting:</strong><br>
+                        1. Check browser camera permission settings<br>
+                        2. Ensure camera is not in use by another app<br>
+                        3. Try a different browser (Chrome recommended)<br>
+                        4. Make sure your device has a working camera
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        // Add overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+        `;
+        
+        document.body.appendChild(overlay);
+        document.body.appendChild(errorDiv);
     }
     
     /**
      * Capture and upload webcam snapshot
      */
     async captureWebcamSnapshot() {
-        if (!this.videoStream) {
-            console.warn('Video stream not available');
+        if (!this.videoStream || !this.permissionsGranted) {
+            console.warn('Video stream not available or permissions not granted');
+            return;
+        }
+        
+        // Verify camera is still active
+        const videoTrack = this.videoStream.getVideoTracks()[0];
+        if (!videoTrack || videoTrack.readyState === 'ended' || !videoTrack.enabled) {
+            console.warn('Camera is not active - skipping snapshot');
             return;
         }
         
@@ -96,88 +392,80 @@ class ProctoringSystem {
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0);
             
-            // Convert to compressed blob
-            const blob = await new Promise(resolve => {
-                canvas.toBlob(resolve, 'image/jpeg', 0.6); // 60% quality for compression
-            });
-            
-            // Upload snapshot
-            await this.uploadSnapshot(blob, 'webcam');
-            
-            console.log('Webcam snapshot captured and uploaded');
-        } catch (error) {
-            console.error('Failed to capture webcam snapshot:', error);
-        }
-    }
-    
-    /**
-     * Capture and upload screen snapshot
-     */
-    async captureScreenSnapshot() {
-        try {
-            // Capture screen
-            const canvas = await html2canvas(document.body, {
-                scale: 0.5, // Reduce resolution for compression
-                logging: false
-            });
-            
-            // Convert to compressed blob
+            // Convert to blob with compression (60% quality)
             const blob = await new Promise(resolve => {
                 canvas.toBlob(resolve, 'image/jpeg', 0.6);
             });
             
             // Upload snapshot
+            await this.uploadSnapshot(blob);
+            
+            console.log('✓ Webcam snapshot captured and uploaded');
+        } catch (error) {
+            console.error('✗ Failed to capture snapshot:', error);
+        }
+    }
+    
+    /**
+     * Capture and upload screen screenshot
+     */
+    async captureScreenshot() {
+        try {
+            const canvas = await html2canvas(document.body, {
+                allowTaint: true,
+                useCORS: true,
+                logging: false,
+                scale: 0.5 // Reduce size for faster upload
+            });
+            
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/jpeg', 0.6);
+            });
+            
             await this.uploadSnapshot(blob, 'screen');
             
-            console.log('Screen snapshot captured and uploaded');
+            console.log('✓ Screenshot captured and uploaded');
         } catch (error) {
-            console.error('Failed to capture screen snapshot:', error);
+            console.error('✗ Failed to capture screenshot:', error);
         }
     }
     
     /**
      * Upload snapshot to server
      */
-    async uploadSnapshot(blob, type) {
+    async uploadSnapshot(blob, type = 'webcam') {
         const formData = new FormData();
-        formData.append('image', blob, `${type}_${Date.now()}.jpg`);
-        formData.append('event_type', type);
+        formData.append('snapshot', blob, `${type}_snapshot.jpg`);
+        formData.append('snapshot_type', type);
+        formData.append('csrfmiddlewaretoken', this.csrfToken);
         
         try {
             const response = await fetch(this.snapshotUploadUrl, {
                 method: 'POST',
-                headers: {
-                    'X-CSRFToken': this.csrfToken
-                },
-                body: formData
+                body: formData,
             });
             
             if (!response.ok) {
-                throw new Error('Upload failed');
+                throw new Error(`Upload failed: ${response.status}`);
             }
         } catch (error) {
-            console.error('Failed to upload snapshot:', error);
+            console.error('Snapshot upload error:', error);
         }
     }
     
     /**
-     * Start periodic snapshot capture
+     * Start periodic snapshot timer
      */
     startSnapshotTimer() {
-        // Randomize interval slightly to prevent prediction
-        const variation = Math.random() * 60000; // ±30 seconds
-        const interval = (this.snapshotIntervalSeconds * 1000) + variation;
+        // Take first snapshots immediately
+        this.captureWebcamSnapshot();
+        this.captureScreenshot();
         
-        this.snapshotTimer = setInterval(async () => {
-            await this.captureWebcamSnapshot();
-            await this.captureScreenSnapshot();
-        }, interval);
-        
-        // Take first snapshot immediately
-        setTimeout(() => {
+        // Then take snapshots at intervals
+        this.snapshotTimer = setInterval(() => {
             this.captureWebcamSnapshot();
-            this.captureScreenSnapshot();
-        }, 5000); // Wait 5 seconds after test starts
+            this.captureScreenshot();
+        }, this.snapshotIntervalSeconds * 1000);
     }
     
     /**
@@ -187,129 +475,114 @@ class ProctoringSystem {
         // Disable right-click
         document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            this.logEvent('right_click', { x: e.clientX, y: e.clientY });
-            this.showWarning('Right-click is disabled during the test');
+            this.logEvent('right_click_blocked');
         });
         
-        // Disable F12, Ctrl+Shift+I, Ctrl+U, etc.
+        // Disable common keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            // F12
-            if (e.key === 'F12') {
+            // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+                (e.ctrlKey && e.key === 'U')) {
                 e.preventDefault();
-                this.logEvent('devtools_attempt');
-                this.showWarning('Developer tools are not allowed');
-                return false;
+                this.logEvent('devtools_blocked');
             }
             
-            // Ctrl+Shift+I (DevTools)
-            if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+            // Ctrl+C, Ctrl+V
+            if (e.ctrlKey && (e.key === 'c' || e.key === 'v')) {
                 e.preventDefault();
-                this.logEvent('devtools_attempt');
-                this.showWarning('Developer tools are not allowed');
-                return false;
-            }
-            
-            // Ctrl+U (View Source)
-            if (e.ctrlKey && e.key === 'u') {
-                e.preventDefault();
-                this.logEvent('view_source_attempt');
-                return false;
-            }
-            
-            // Ctrl+C (Copy)
-            if (e.ctrlKey && e.key === 'c') {
-                e.preventDefault();
-                this.logEvent('copy_paste', { action: 'copy' });
-                this.showWarning('Copying is disabled during the test');
-                return false;
-            }
-            
-            // Ctrl+V (Paste)
-            if (e.ctrlKey && e.key === 'v') {
-                e.preventDefault();
-                this.logEvent('copy_paste', { action: 'paste' });
-                this.showWarning('Pasting is disabled during the test');
-                return false;
+                this.logEvent('copy_paste_blocked');
             }
         });
         
-        // Detect tab switch / window blur
+        // Tab visibility detection
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                this.logEvent('tab_switch');
                 this.warningCount++;
+                this.logEvent('tab_switched', { warning_count: this.warningCount });
                 
                 if (this.warningCount >= this.maxWarnings) {
-                    this.forceSubmitTest('Too many tab switches detected');
-                } else {
-                    this.showWarning(`Tab switching detected! Warning ${this.warningCount}/${this.maxWarnings}`);
+                    alert(`Warning ${this.warningCount}/${this.maxWarnings}: Tab switching is not allowed! Your test may be flagged.`);
                 }
             }
         });
         
+        // Window blur detection
         window.addEventListener('blur', () => {
             this.logEvent('window_blur');
         });
         
-        // Detect fullscreen exit
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                this.isFullscreen = false;
-                this.logEvent('fullscreen_exit');
-                this.warningCount++;
-                
-                if (this.warningCount >= this.maxWarnings) {
-                    this.forceSubmitTest('Exited fullscreen too many times');
-                } else {
-                    this.showWarning(`Please return to fullscreen! Warning ${this.warningCount}/${this.maxWarnings}`);
-                    setTimeout(() => this.enterFullscreen(), 2000);
-                }
-            } else {
-                this.isFullscreen = true;
-            }
-        });
-        
-        // Warn before leaving page
-        window.addEventListener('beforeunload', (e) => {
-            e.preventDefault();
-            e.returnValue = 'Are you sure you want to leave the test? Your progress will be lost.';
-            return e.returnValue;
-        });
+        console.log('✓ Browser lockdown enabled');
     }
     
     /**
-     * Enter fullscreen mode
+     * Force fullscreen mode
      */
     enterFullscreen() {
         const elem = document.documentElement;
         
         if (elem.requestFullscreen) {
             elem.requestFullscreen().catch(err => {
-                console.error('Failed to enter fullscreen:', err);
+                console.error('Fullscreen request failed:', err);
             });
-        } else if (elem.webkitRequestFullscreen) {
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) {
-            elem.msRequestFullscreen();
+        }
+        
+        // Monitor fullscreen exits
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                this.logEvent('fullscreen_exit');
+                // Try to re-enter fullscreen
+                setTimeout(() => this.enterFullscreen(), 100);
+            }
+        });
+    }
+    
+    /**
+     * Log IP address to database
+     * UPDATED: Properly saves IP to TestAttempt model
+     */
+    async logIPAddress() {
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            
+            // Log to database with special 'ip_logged' event type
+            // Backend will save this to TestAttempt.ip_address field
+            await this.logEvent('ip_logged', { 
+                ip: data.ip,
+                severity: 'info'
+            });
+            
+            console.log('✓ IP address logged:', data.ip);
+        } catch (error) {
+            console.error('Failed to log IP:', error);
+            // Try to log at least the server-side IP
+            await this.logEvent('ip_logged', {
+                ip: 'server_side',
+                note: 'Failed to get client IP, using server detection',
+                severity: 'info'
+            });
         }
     }
     
     /**
-     * Log proctoring event to server
+     * Log proctoring event
      */
-    async logEvent(eventType, metadata = {}) {
+    async logEvent(eventType, extraData = {}) {
+        const eventData = {
+            event_type: eventType,
+            timestamp: new Date().toISOString(),
+            ...extraData
+        };
+        
         try {
             await fetch(this.eventLogUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': this.csrfToken
+                    'X-CSRFToken': this.csrfToken,
                 },
-                body: JSON.stringify({
-                    event_type: eventType,
-                    metadata: metadata,
-                    timestamp: new Date().toISOString()
-                })
+                body: JSON.stringify(eventData),
             });
         } catch (error) {
             console.error('Failed to log event:', error);
@@ -317,74 +590,14 @@ class ProctoringSystem {
     }
     
     /**
-     * Log IP address
-     */
-    async logIPAddress() {
-        try {
-            // Get IP from external service
-            const response = await fetch('https://api.ipify.org?format=json');
-            const data = await response.json();
-            
-            await this.logEvent('ip_address', { ip: data.ip });
-        } catch (error) {
-            console.error('Failed to log IP:', error);
-        }
-    }
-    
-    /**
-     * Show warning to user
-     */
-    showWarning(message) {
-        // Create warning overlay
-        const warning = document.createElement('div');
-        warning.className = 'proctoring-warning';
-        warning.innerHTML = `
-            <div style="
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #ff9800;
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                z-index: 10000;
-                font-weight: bold;
-                animation: slideIn 0.3s ease-out;
-            ">
-                ⚠️ ${message}
-            </div>
-        `;
-        
-        document.body.appendChild(warning);
-        
-        setTimeout(() => {
-            warning.remove();
-        }, 5000);
-    }
-    
-    /**
-     * Force submit test due to violation
-     */
-    forceSubmitTest(reason) {
-        alert(`Test is being submitted due to: ${reason}`);
-        
-        // Log the violation
-        this.logEvent('forced_submission', { reason });
-        
-        // Submit the test form
-        const form = document.querySelector('form');
-        if (form) {
-            form.submit();
-        } else {
-            window.location.href = `/test/submit/${this.attemptId}/`;
-        }
-    }
-    
-    /**
-     * Cleanup when test ends
+     * Cleanup resources
      */
     cleanup() {
+        // Stop camera monitoring
+        if (this.streamMonitorTimer) {
+            clearInterval(this.streamMonitorTimer);
+        }
+        
         // Stop snapshot timer
         if (this.snapshotTimer) {
             clearInterval(this.snapshotTimer);
@@ -395,30 +608,6 @@ class ProctoringSystem {
             this.videoStream.getTracks().forEach(track => track.stop());
         }
         
-        // Exit fullscreen
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-        }
-        
-        console.log('Proctoring system cleaned up');
+        console.log('✓ Proctoring system cleaned up');
     }
 }
-
-// Add CSS animation
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(400px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-`;
-document.head.appendChild(style);
-
-// Export for use in templates
-window.ProctoringSystem = ProctoringSystem;

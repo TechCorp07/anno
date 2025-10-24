@@ -257,7 +257,7 @@ def export_analytics_excel(request):
     """
     import openpyxl
     from django.http import HttpResponse
-    from io.io import BytesIO
+    from io import BytesIO
     
     wb = openpyxl.Workbook()
     

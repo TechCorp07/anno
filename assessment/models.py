@@ -482,18 +482,36 @@ class Answer(models.Model):
 class ProctoringEvent(models.Model):
     """
     Stores proctoring snapshots and events during test
+    UPDATED: Added camera_disabled, ip_logged, and other critical events
     """
     EVENT_TYPES = [
+        # Snapshots
         ('webcam', 'Webcam Snapshot'),
         ('screen', 'Screen Snapshot'),
+        
+        # Browser Events
         ('tab_switch', 'Tab Switch Detected'),
         ('fullscreen_exit', 'Fullscreen Exit'),
+        ('window_blur', 'Window Lost Focus'),
+        
+        # Security Events
         ('copy_paste', 'Copy/Paste Attempt'),
         ('right_click', 'Right Click Attempt'),
+        ('devtools_blocked', 'Developer Tools Blocked'),
+        
+        # Camera Events (NEW)
+        ('camera_access_granted', 'Camera Access Granted'),
+        ('camera_disabled', 'Camera Disabled During Exam'),  # CRITICAL
+        ('camera_permission_denied', 'Camera Permission Denied'),
+        
+        # System Events (NEW)
+        ('ip_logged', 'IP Address Logged'),
+        ('proctoring_initialized', 'Proctoring System Initialized'),
+        ('consent_accepted', 'Consent Form Accepted'),
     ]
     
     attempt = models.ForeignKey(TestAttempt, on_delete=models.CASCADE, related_name='proctoring_events')
-    event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES)  # Increased from 20 to 30
     
     # Snapshots
     image_file = models.ImageField(
@@ -507,7 +525,19 @@ class ProctoringEvent(models.Model):
     metadata = models.JSONField(
         blank=True,
         null=True,
-        help_text="Additional event data (browser info, mouse position, etc.)"
+        help_text="Additional event data (browser info, mouse position, IP, etc.)"
+    )
+    
+    # Severity level (NEW)
+    severity = models.CharField(
+        max_length=20,
+        choices=[
+            ('info', 'Information'),
+            ('warning', 'Warning'),
+            ('critical', 'Critical'),
+        ],
+        default='info',
+        help_text="Event severity for admin review"
     )
     
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -517,19 +547,29 @@ class ProctoringEvent(models.Model):
         indexes = [
             models.Index(fields=['attempt', 'event_type']),
             models.Index(fields=['timestamp']),
+            models.Index(fields=['severity']),  # NEW: For filtering critical events
         ]
     
     def __str__(self):
-        return f"{self.attempt.user.username} - {self.event_type} - {self.timestamp}"
+        severity_icon = '🚨' if self.severity == 'critical' else '⚠️' if self.severity == 'warning' else 'ℹ️'
+        return f"{severity_icon} {self.attempt.user.username} - {self.event_type} - {self.timestamp}"
     
     @classmethod
     def cleanup_old_snapshots(cls, days=30):
         """Delete proctoring data older than specified days"""
+        from datetime import timedelta
+        from django.utils import timezone
+        
         cutoff_date = timezone.now() - timedelta(days=days)
         old_events = cls.objects.filter(timestamp__lt=cutoff_date)
         count = old_events.count()
         old_events.delete()
         return count
+    
+    def is_critical(self):
+        """Check if this event is critical"""
+        critical_types = ['camera_disabled', 'camera_permission_denied']
+        return self.event_type in critical_types or self.severity == 'critical'
 
 
 class PlagiarismFlag(models.Model):

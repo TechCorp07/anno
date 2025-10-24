@@ -21,18 +21,27 @@
         <div class="mb-8 space-y-4">
             <h3 class="text-xl font-semibold text-gray-800 mb-4">Proctoring Requirements</h3>
             
-            <div class="bg-gray-50 p-4 rounded-lg">
-                <h4 class="font-semibold text-gray-700 mb-2">1. Webcam Monitoring</h4>
+            <div class="bg-gray-50 p-4 rounded-lg border-l-4 border-red-400">
+                <h4 class="font-semibold text-gray-700 mb-2">⚠️ 1. Camera Monitoring (REQUIRED)</h4>
                 <p class="text-gray-600">
-                    Your webcam will capture periodic snapshots during the test (every 2-5 minutes). 
-                    These images are compressed and stored securely for 30 days.
+                    Your camera <strong>must remain on</strong> throughout the entire exam. The system will:
+                </p>
+                <ul class="list-disc list-inside text-gray-600 mt-2 ml-4">
+                    <li>Capture periodic snapshots (every 2-5 minutes)</li>
+                    <li><strong>Continuously monitor</strong> that your camera stays enabled</li>
+                    <li><strong>Alert and log</strong> if camera is turned off during exam</li>
+                    <li>Store images securely for 30 days, then auto-delete</li>
+                </ul>
+                <p class="text-red-600 font-semibold mt-3">
+                    ⚠️ WARNING: Turning off your camera during the exam will result in disqualification!
                 </p>
             </div>
             
             <div class="bg-gray-50 p-4 rounded-lg">
-                <h4 class="font-semibold text-gray-700 mb-2">2. Screen Recording</h4>
+                <h4 class="font-semibold text-gray-700 mb-2">2. Screen Capture</h4>
                 <p class="text-gray-600">
                     Periodic screenshots of your screen will be captured to ensure test integrity.
+                    Screenshots are taken at the same intervals as camera snapshots.
                 </p>
             </div>
             
@@ -46,6 +55,7 @@
                     <li>Tab switching is not allowed (max 3 warnings)</li>
                     <li>Right-click and keyboard shortcuts are disabled</li>
                     <li>Copy/paste is disabled</li>
+                    <li>Developer tools are blocked</li>
                 </ul>
             </div>
             
@@ -67,11 +77,23 @@
         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 mb-6">
             <h3 class="text-lg font-semibold text-yellow-900 mb-2">Important Notes</h3>
             <ul class="list-disc list-inside text-yellow-800 space-y-2">
-                <li>Ensure your webcam is working before starting</li>
+                <li><strong>Camera MUST stay on</strong> - Do not disable or cover your camera</li>
                 <li>Use a quiet, well-lit environment</li>
+                <li>Ensure your face is clearly visible to the camera</li>
                 <li>Do not leave the test page once started</li>
-                <li>Violations may result in test disqualification</li>
-                <li>All proctoring data is deleted after 30 days</li>
+                <li>Violations may result in immediate test disqualification</li>
+                <li>All proctoring data is automatically deleted after 30 days</li>
+            </ul>
+        </div>
+        
+        <div class="bg-red-50 border-l-4 border-red-400 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-red-900 mb-2">⚠️ Exam Disqualification Conditions</h3>
+            <ul class="list-disc list-inside text-red-800 space-y-2">
+                <li><strong>Turning off camera</strong> during the exam</li>
+                <li><strong>Covering the camera</strong> or blocking the view</li>
+                <li>Excessive tab switching (more than 3 warnings)</li>
+                <li>Leaving fullscreen mode repeatedly</li>
+                <li>Using external resources or assistance</li>
             </ul>
         </div>
         
@@ -87,40 +109,27 @@
                            class="mt-1 w-5 h-5 text-blue-600">
                     <span class="text-gray-700">
                         <strong>I agree</strong> to the proctoring terms above. I understand that:
-                        <ul class="list-disc list-inside mt-2 space-y-1 text-sm">
-                            <li>My webcam and screen will be periodically captured</li>
-                            <li>My actions during the test will be monitored</li>
-                            <li>Violations may lead to disqualification</li>
-                            <li>Data will be stored securely for 30 days</li>
+                        <ul class="list-disc list-inside mt-2 ml-4 text-sm">
+                            <li>My camera must remain on throughout the exam</li>
+                            <li>Camera snapshots and screenshots will be captured</li>
+                            <li>Disabling my camera will result in disqualification</li>
+                            <li>All monitoring data will be deleted after 30 days</li>
                         </ul>
                     </span>
                 </label>
             </div>
             
-            <div class="flex gap-4">
+            <div class="flex space-x-4">
                 <button type="submit" 
-                        class="flex-1 bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition text-lg font-semibold">
+                        class="flex-1 bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition font-semibold text-lg">
                     I Agree - Start Test
                 </button>
                 <a href="{% url 'test_detail' test.id %}" 
-                   class="flex-1 bg-gray-300 text-gray-700 text-center py-4 rounded-lg hover:bg-gray-400 transition text-lg font-semibold">
+                   class="flex-1 bg-gray-300 text-gray-700 py-4 rounded-lg hover:bg-gray-400 transition font-semibold text-lg text-center flex items-center justify-center">
                     Cancel
                 </a>
             </div>
         </form>
     </div>
 </div>
-
-<script>
-// Check webcam availability
-navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-        stream.getTracks().forEach(track => track.stop());
-        console.log('Webcam available');
-    })
-    .catch(error => {
-        alert('⚠️ Webcam not detected! Please ensure your webcam is connected and you have granted permission.');
-        console.error('Webcam error:', error);
-    });
-</script>
 {% endblock %}
