@@ -7,8 +7,10 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Avg, Count, Q
-import json
+from django.core.validators import MinValueValidator
 from datetime import timedelta
+import json
+import random
 
 
 class TestCategory(models.Model):
@@ -61,10 +63,24 @@ class QuestionTopic(models.Model):
         return f"{self.category.name} - {self.name}"
     
     def get_random_questions(self, count=None):
-        """Get random active questions from this topic"""
         if count is None:
             count = self.questions_per_test
-        return self.questions.filter(is_active=True).order_by('?')[:count]
+        
+        question_ids = list(
+            self.questions.filter(is_active=True).values_list('id', flat=True)
+        )
+        
+        # Can't get more questions than available
+        actual_count = min(count, len(question_ids))
+        
+        if actual_count == 0:
+            return self.questions.none()
+        
+        # Random sample in Python (very fast, O(n))
+        selected_ids = random.sample(question_ids, actual_count)
+        
+        # Note: id__in doesn't preserve order, but we don't need order
+        return self.questions.filter(id__in=selected_ids)
 
 
 class Question(models.Model):
@@ -151,6 +167,7 @@ class Question(models.Model):
         ordering = ['topic', 'difficulty_level', 'created_at']
         indexes = [
             models.Index(fields=['topic', 'is_active']),
+            models.Index(fields=['is_active']),
             models.Index(fields=['question_type']),
         ]
     
@@ -256,18 +273,97 @@ class Test(models.Model):
         return f"{self.category.name} - {self.title}"
     
     def get_total_questions(self):
-        """Get total number of questions in this test"""
+
         if self.auto_generate_from_topics:
-            return sum(topic.questions_per_test for topic in self.category.topics.all())
+            # Use topic distributions if configured
+            from django.db.models import Sum
+            
+            distributions = self.topic_distributions.all()
+            if distributions.exists():
+                # Aggregate sum directly in database (fast!)
+                result = distributions.aggregate(
+                    total=Sum('num_questions')
+                )
+                return result['total'] or 0
+            
+            # Fallback to old method
+            topics = self.category.topics.all()
+            result = topics.aggregate(
+                total=Sum('questions_per_test')
+            )
+            return result['total'] or 0
+        
         return self.manual_questions.count()
     
     def generate_question_set(self):
-        """Generate a randomized question set from topics"""
+
         questions = []
-        for topic in self.category.topics.all():
-            topic_questions = topic.get_random_questions()
-            questions.extend(topic_questions)
+        
+        # Prefetch related data to reduce queries
+        distributions = self.topic_distributions.all().select_related(
+            'topic',
+            'topic__category'
+        )
+        
+        if distributions.exists():
+            # Multi-topic distribution mode
+            for dist in distributions:
+                topic_questions = dist.topic.get_random_questions(dist.num_questions)
+                # Convert to list immediately for better performance
+                questions.extend(list(topic_questions))
+        else:
+            # Fallback: Old single-category mode
+            topics = self.category.topics.all()
+            for topic in topics:
+                topic_questions = topic.get_random_questions()
+                questions.extend(list(topic_questions))
+        
         return questions
+    
+    def get_distribution_summary(self):
+        """
+        Get a summary of question distribution for display.
+        Returns: "5 from Verbal, 5 from Numerical, 5 from Spatial (Total: 15)"
+        """
+        distributions = self.topic_distributions.all().order_by('order')
+        if not distributions.exists():
+            return f"{self.get_total_questions()} from {self.category.name}"
+        
+        parts = [f"{d.num_questions} from {d.topic.name}" for d in distributions]
+        total = sum(d.num_questions for d in distributions)
+        return f"{', '.join(parts)} (Total: {total})"
+
+
+class TestTopicDistribution(models.Model):
+    test = models.ForeignKey('Test', on_delete=models.CASCADE, related_name='topic_distributions')
+    topic = models.ForeignKey('QuestionTopic', on_delete=models.CASCADE, related_name='test_distributions')
+    num_questions = models.IntegerField(
+        validators=[MinValueValidator(1)],
+        help_text="Number of random questions to pull from this topic"
+    )
+    order = models.IntegerField(
+        default=0,
+        help_text="Display order in the test (lower numbers appear first)"
+    )
+    
+    class Meta:
+        ordering = ['test', 'order']
+        unique_together = ['test', 'topic']
+        verbose_name = 'Test Topic Distribution'
+        verbose_name_plural = 'Test Topic Distributions'
+    
+    def __str__(self):
+        return f"{self.test.title} - {self.topic.name}: {self.num_questions} questions"
+    
+    def clean(self):
+        """Validate that topic has enough questions"""
+        from django.core.exceptions import ValidationError
+        available = self.topic.questions.filter(is_active=True).count()
+        if self.num_questions > available:
+            raise ValidationError(
+                f"Topic '{self.topic.name}' only has {available} active questions, "
+                f"but you requested {self.num_questions}."
+            )
 
 
 class TestAttempt(models.Model):

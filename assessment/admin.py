@@ -16,7 +16,7 @@ import os
 
 from .models import (
     TestCategory, QuestionTopic, Question, Test, TestAttempt, Answer,
-    Cohort, CohortMembership, ProctoringEvent, PlagiarismFlag
+    Cohort, CohortMembership, ProctoringEvent, PlagiarismFlag, TestTopicDistribution
 )
 
 
@@ -340,6 +340,25 @@ class CohortMembershipAdmin(admin.ModelAdmin):
     raw_id_fields = ['user']
 
 
+class TestTopicDistributionInline(admin.TabularInline):
+    """
+    Inline admin for configuring question distribution across topics.
+    """
+    model = TestTopicDistribution
+    extra = 1
+    fields = ['topic', 'num_questions', 'order']
+    verbose_name = 'Topic Distribution'
+    verbose_name_plural = 'Question Distribution by Topic'
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Show all active topics from all categories"""
+        if db_field.name == "topic":
+            kwargs["queryset"] = QuestionTopic.objects.filter(
+                category__is_active=True
+            ).select_related('category').order_by('category__name', 'name')
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
 @admin.register(Test)
 class TestAdmin(admin.ModelAdmin):
     list_display = ['title', 'category', 'time_limit_minutes', 'passing_score', 
@@ -350,6 +369,7 @@ class TestAdmin(admin.ModelAdmin):
     list_editable = ['is_active']
     change_form_template = 'admin/assessment/test/change_form.html'
     add_form_template = 'admin/assessment/test/change_form.html'
+    inlines = [TestTopicDistributionInline]
     
     def total_questions(self, obj):
         return obj.get_total_questions()
