@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+import json
 
 from .models import Test, TestAttempt, Question, Answer
 
@@ -171,8 +172,24 @@ def submit_answer(request, attempt_id):
     question_id = request.POST.get('question_id')
     selected_answer = request.POST.get('answer')
     
+    clicked_x = request.POST.get('clicked_x')
+    clicked_y = request.POST.get('clicked_y')
+    
     question = get_object_or_404(Question, id=question_id)
     
+    if question.question_type == 'dicom' and clicked_x and clicked_y:
+        answer, created = Answer.objects.update_or_create(
+            attempt=attempt,
+            question=question,
+            defaults={'clicked_coordinates': {'x': int(clicked_x), 'y': int(clicked_y)}}
+        )
+        answer.check_answer()
+        return JsonResponse({
+            'success': True,
+            'is_correct': answer.is_correct,
+            'question_id': question.id
+        })
+        
     # Create or update answer
     answer, created = Answer.objects.update_or_create(
         attempt=attempt,
@@ -245,3 +262,115 @@ def test_result(request, attempt_id):
         'correct_answers': answers.filter(is_correct=True).count(),
     }
     return render(request, 'assessment/test_result.html', context)
+
+@login_required
+def dicom_question_view(request, attempt_id, question_id):
+    """
+    Display DICOM question with Cornerstone3D viewer
+    """
+    attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
+    question = get_object_or_404(Question, id=question_id, question_type='dicom')
+    
+    # Check if test is still active
+    if attempt.is_expired() or attempt.status == 'completed':
+        return redirect('test_result', attempt_id=attempt.id)
+    
+    # Check if this question is already answered
+    try:
+        answer = Answer.objects.get(attempt=attempt, question=question)
+        already_answered = True
+    except Answer.DoesNotExist:
+        already_answered = False
+    
+    context = {
+        'attempt': attempt,
+        'question': question,
+        'already_answered': already_answered,
+        'show_feedback': False,  # Set to True for training mode
+        'show_explanation': False,  # Set to True for training mode
+    }
+    
+    return render(request, 'assessment/dicom_question.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def submit_dicom_answer(request, attempt_id):
+    """
+    Submit DICOM answer with clicked coordinates
+    Enhanced version of submit_answer for DICOM questions
+    """
+    attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
+    
+    # Check if expired
+    if attempt.is_expired() or attempt.status == 'completed':
+        return JsonResponse({
+            'success': False,
+            'error': 'Test is no longer active'
+        }, status=400)
+    
+    question_id = request.POST.get('question_id')
+    
+    # Check for DICOM coordinates
+    clicked_x = request.POST.get('clicked_x')
+    clicked_y = request.POST.get('clicked_y')
+    
+    # Check for MCQ answer
+    selected_answer = request.POST.get('answer')
+    
+    if not question_id:
+        return JsonResponse({
+            'success': False,
+            'error': 'Missing question_id'
+        }, status=400)
+    
+    question = get_object_or_404(Question, id=question_id)
+    
+    # Handle DICOM question with coordinates
+    if question.question_type == 'dicom' and clicked_x and clicked_y:
+        answer, created = Answer.objects.update_or_create(
+            attempt=attempt,
+            question=question,
+            defaults={
+                'clicked_coordinates': {
+                    'x': int(clicked_x),
+                    'y': int(clicked_y)
+                }
+            }
+        )
+        
+        # Check if answer is correct (within hotspot)
+        is_correct = answer.check_answer()
+        
+        return JsonResponse({
+            'success': True,
+            'is_correct': is_correct,
+            'question_id': question.id,
+            'question_type': 'dicom'
+        })
+    
+    # Handle regular MCQ answer
+    elif selected_answer:
+        answer, created = Answer.objects.update_or_create(
+            attempt=attempt,
+            question=question,
+            defaults={
+                'selected_answer': selected_answer
+            }
+        )
+        
+        # Check if answer is correct
+        is_correct = answer.check_answer()
+        
+        return JsonResponse({
+            'success': True,
+            'is_correct': is_correct,
+            'question_id': question.id,
+            'question_type': question.question_type
+        })
+    
+    else:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid answer format'
+        }, status=400)

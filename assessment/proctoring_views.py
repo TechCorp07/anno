@@ -1,10 +1,8 @@
-"""
-Proctoring views for handling webcam snapshots and monitoring events
-"""
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from PIL import Image
@@ -43,7 +41,7 @@ def upload_proctoring_snapshot(request, attempt_id):
         
         # Resize to max 640x480 to ensure ~200KB
         max_size = (640, 480)
-        img.thumbnail(max_size, Image.LANCZOS)
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
         
         # Save to BytesIO with JPEG compression
         output = BytesIO()
@@ -79,7 +77,8 @@ def upload_proctoring_snapshot(request, attempt_id):
 @require_http_methods(["POST"])
 def log_proctoring_event(request, attempt_id):
     """
-    Log proctoring events (tab switch, right-click, etc.)
+    FIXED: Log proctoring events (tab switch, right-click, etc.)
+    Better error handling for JSON parsing
     """
     attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
     
@@ -88,16 +87,29 @@ def log_proctoring_event(request, attempt_id):
         return JsonResponse({'error': 'Test is not active'}, status=400)
     
     try:
-        data = json.loads(request.body)
-        event_type = data.get('event_type')
+        # Try to parse JSON body
+        if request.body:
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                # If JSON parsing fails, try to get from POST
+                data = {
+                    'event_type': request.POST.get('event_type', 'unknown'),
+                    'metadata': request.POST.dict()
+                }
+        else:
+            # Empty body - use POST data
+            data = {
+                'event_type': request.POST.get('event_type', 'unknown'),
+                'metadata': request.POST.dict()
+            }
+        
+        event_type = data.get('event_type', 'unknown')
         metadata = data.get('metadata', {})
         
-        # Add request metadata
-        metadata.update({
-            'user_agent': request.META.get('HTTP_USER_AGENT', ''),
-            'remote_addr': request.META.get('REMOTE_ADDR', ''),
-            'http_x_forwarded_for': request.META.get('HTTP_X_FORWARDED_FOR', ''),
-        })
+        # Add user agent to metadata
+        if 'user_agent' not in metadata:
+            metadata['user_agent'] = request.META.get('HTTP_USER_AGENT', '')
         
         # Create event
         event = ProctoringEvent.objects.create(
@@ -106,30 +118,32 @@ def log_proctoring_event(request, attempt_id):
             metadata=metadata
         )
         
-        # Check for suspicious activity
-        if event_type in ['tab_switch', 'fullscreen_exit']:
-            recent_violations = ProctoringEvent.objects.filter(
+        # Flag attempt if too many violations
+        if event_type in ['tab_switch', 'fullscreen_exit', 'copy_paste']:
+            violation_count = ProctoringEvent.objects.filter(
                 attempt=attempt,
-                event_type__in=['tab_switch', 'fullscreen_exit'],
-                timestamp__gte=timezone.now() - timezone.timedelta(minutes=10)
+                event_type__in=['tab_switch', 'fullscreen_exit', 'copy_paste']
             ).count()
             
-            if recent_violations >= 5:
-                # Flag attempt for review
+            if violation_count >= 5:
                 attempt.status = 'flagged'
                 attempt.save()
-                
                 return JsonResponse({
                     'success': True,
-                    'warning': 'Multiple violations detected. Test flagged for review.'
+                    'event_id': event.id,
+                    'warning': 'Test flagged for review.'
                 })
         
         return JsonResponse({'success': True, 'event_id': event.id})
         
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+        # Log error but don't break the test
+        print(f"Proctoring event error: {str(e)}")
+        return JsonResponse({
+            'success': False, 
+            'error': 'Event logging failed',
+            'details': str(e)
+        }, status=400)
 
 
 @login_required
@@ -138,6 +152,9 @@ def test_consent_form(request, test_id):
     Display consent form before starting test
     """
     from .models import Test
+    from django.urls import reverse
+    from django.contrib import messages
+    
     test = get_object_or_404(Test, id=test_id, is_active=True)
     
     if request.method == 'POST':
@@ -163,7 +180,6 @@ def test_consent_form(request, test_id):
                 attempt.save()
             
             # Redirect to test
-            from django.urls import reverse
             return redirect(reverse('take_test', args=[attempt.id]))
         else:
             messages.error(request, 'You must agree to the consent terms to take the test.')
@@ -172,3 +188,7 @@ def test_consent_form(request, test_id):
     return render(request, 'assessment/consent_form.html', {
         'test': test
     })
+
+
+
+

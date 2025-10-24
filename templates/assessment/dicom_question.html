@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    .dicom-viewer-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .dicom-canvas {
+        width: 100%;
+        height: 600px;
+        background: #000;
+        border-radius: 8px;
+        cursor: crosshair;
+    }
+    
+    .viewer-controls {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .coordinate-display {
+        background: #1a1a1a;
+        color: #00ff00;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+    
+    .hotspot-marker {
+        position: absolute;
+        border: 2px solid #ff0000;
+        background: rgba(255, 0, 0, 0.2);
+        pointer-events: none;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Cornerstone Core Library -->
+<script src="https://unpkg.com/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
+<script src="https://unpkg.com/cornerstone-math@0.1.10/dist/cornerstoneMath.min.js"></script>
+<script src="https://unpkg.com/cornerstone-tools@6.0.10/dist/cornerstoneTools.min.js"></script>
+
+<!-- DICOM Image Loader -->
+<script src="https://unpkg.com/cornerstone-wado-image-loader@4.1.3/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
+
+<!-- Web Image Loader (for demo with PNG/JPG) -->
+<script src="https://unpkg.com/cornerstone-web-image-loader@2.1.1/dist/cornerstoneWebImageLoader.min.js"></script>
+
+<!-- Our DICOM Viewer -->
+<script src="{% static 'js/dicom_viewer.js' %}"></script>
+
+<script>
+let dicomViewer;
+let selectedCoordinates = null;
+
+document.addEventListener('DOMContentLoaded', async function() {
+    // Hotspot regions from question data (if any)
+    const hotspotRegions = {{ question.hotspot_coordinates|safe }};
+    
+    // Initialize viewer
+    dicomViewer = new DICOMViewer(
+        'dicomViewer',
+        '{{ question.question_image.url }}',  // Can be DICOM or regular image
+        hotspotRegions || []
+    );
+    
+    // Set callback for coordinate clicks
+    dicomViewer.onCoordinateClick = function(coordinates, hitHotspot) {
+        selectedCoordinates = coordinates;
+        
+        // Update display
+        document.getElementById('coordDisplay').innerHTML = `
+            <strong>Click Registered:</strong><br>
+            X: ${coordinates.x}<br>
+            Y: ${coordinates.y}
+        `;
+        
+        // Show feedback if hotspot hit (for training mode only)
+        {% if show_feedback %}
+        if (hitHotspot) {
+            document.getElementById('feedback').innerHTML = `
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                    ✓ Correct! You identified: <strong>${hitHotspot.label}</strong>
+                </div>
+            `;
+        } else {
+            document.getElementById('feedback').innerHTML = `
+                <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+                    Click registered. Submit your answer when ready.
+                </div>
+            `;
+        }
+        {% endif %}
+        
+        // Enable submit button
+        document.getElementById('submitBtn').disabled = false;
+    };
+    
+    // Initialize the viewer
+    const initialized = await dicomViewer.initialize();
+    
+    if (!initialized) {
+        console.error('Failed to initialize DICOM viewer');
+    }
+});
+
+// Submit answer function
+function submitDICOMAnswer() {
+    if (!selectedCoordinates) {
+        alert('Please click on the image to select your answer first.');
+        return;
+    }
+    
+    // Submit via HTMX or form
+    const formData = new FormData();
+    formData.append('question_id', {{ question.id }});
+    formData.append('clicked_x', selectedCoordinates.x);
+    formData.append('clicked_y', selectedCoordinates.y);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+    fetch('{% url "submit_answer" attempt.id %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show result
+            const resultDiv = document.getElementById('result');
+            if (data.is_correct) {
+                resultDiv.innerHTML = `
+                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                        ✓ <strong>Correct!</strong> You identified the hotspot accurately.
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        ✗ <strong>Incorrect.</strong> The clicked region is not the target anatomy.
+                    </div>
+                `;
+            }
+            
+            // Proceed to next question after 2 seconds
+            setTimeout(() => {
+                window.location.href = '{% url "take_test" attempt.id %}';
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        console.error('Error submitting answer:', error);
+        alert('Failed to submit answer. Please try again.');
+    });
+}
+
+// Reset view
+function resetView() {
+    if (dicomViewer) {
+        dicomViewer.reset();
+    }
+}
+</script>
+{% endblock %}
+
+{% block title %}DICOM Question - {{ attempt.test.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">{{ question.topic.name }}</h1>
+                <p class="text-gray-600">DICOM Hotspot Identification</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-600 mb-1">Time Remaining</div>
+                <div class="text-3xl font-bold text-blue-600" id="timer">
+                    {{ question.time_limit_seconds }}s
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Question Text -->
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-800 mb-2">Question:</h2>
+        <p class="text-lg text-gray-700">{{ question.question_text }}</p>
+        
+        {% if question.explanation and show_explanation %}
+        <div class="mt-4 p-4 bg-white rounded border border-blue-200">
+            <p class="text-sm text-gray-600"><strong>Hint:</strong> {{ question.explanation }}</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- DICOM Viewer -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div class="dicom-viewer-container">
+            <!-- Viewer Canvas -->
+            <div id="dicomViewer" class="dicom-canvas"></div>
+            
+            <!-- Instructions -->
+            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h3 class="font-semibold text-gray-800 mb-2">📍 Instructions:</h3>
+                <ul class="text-sm text-gray-700 space-y-1">
+                    <li>• <strong>Click</strong> on the image to identify the target anatomy</li>
+                    <li>• <strong>Scroll wheel</strong> to zoom in/out</li>
+                    <li>• <strong>Right-click + drag</strong> to pan the image</li>
+                    <li>• Use the preset buttons below to adjust windowing</li>
+                </ul>
+            </div>
+            
+            <!-- Windowing Presets -->
+            <div class="viewer-controls mt-4">
+                <div id="windowing-presets" class="flex gap-2 flex-wrap"></div>
+                <button onclick="resetView()" 
+                        class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">
+                    🔄 Reset View
+                </button>
+            </div>
+            
+            <!-- Coordinates Display -->
+            <div class="mt-4">
+                <div id="coordDisplay" class="coordinate-display">
+                    <strong>No click registered yet</strong><br>
+                    Click on the image to register coordinates
+                </div>
+            </div>
+            
+            <!-- Feedback Area -->
+            <div id="feedback" class="mt-4"></div>
+            
+            <!-- Result Area -->
+            <div id="result" class="mt-4"></div>
+        </div>
+    </div>
+    
+    <!-- Submit Button -->
+    <div class="flex justify-between items-center">
+        <a href="{% url 'take_test' attempt.id %}" 
+           class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-semibold">
+            ← Back
+        </a>
+        
+        <button id="submitBtn"
+                onclick="submitDICOMAnswer()" 
+                disabled
+                class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
+            Submit Answer →
+        </button>
+    </div>
+</div>
+{% endblock %}
