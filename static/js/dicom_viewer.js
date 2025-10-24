@@ -1,344 +1,297 @@
 /**
- * Cornerstone3D DICOM Viewer for MRI Training Platform
- * Features: Multi-slice navigation, hotspot detection, windowing controls
+ * SIMPLE Cornerstone DICOM Viewer for MRI Training Platform
+ * Handles both DICOM (.dcm) and regular images (PNG/JPG)
  */
 
 class DICOMViewer {
     constructor(elementId, dicomUrl, hotspotRegions = []) {
         this.element = document.getElementById(elementId);
         this.dicomUrl = dicomUrl;
-        this.hotspotRegions = hotspotRegions; // Array of {x, y, width, height, label}
+        this.hotspotRegions = hotspotRegions || [];
         this.clickedCoordinates = null;
         this.imageId = null;
         this.viewport = null;
-        
-        // Stack management for multi-slice viewing
-        this.currentImageIndex = 0;
-        this.imageIds = [];
-        
-        // Callback for when user clicks on image
+        this.canvas = null;
         this.onCoordinateClick = null;
     }
     
-    /**
-     * Initialize the viewer
-     */
     async initialize() {
         try {
-            // Initialize Cornerstone3D
-            await this.initializeCornerstone();
+            console.log('Starting DICOM viewer initialization...');
             
-            // Load DICOM image
-            await this.loadDICOM();
+            if (typeof cornerstone === 'undefined') {
+                throw new Error('Cornerstone library not loaded');
+            }
             
-            // Setup interaction handlers
+            // Setup canvas
+            this.setupCanvas();
+            
+            // Register image loader FIRST
+            this.registerImageLoader();
+            
+            // Load image
+            await this.loadImage();
+            
+            // Setup interactions
             this.setupInteractions();
             
-            // Setup windowing controls
-            this.setupWindowing();
-            
-            console.log('DICOM Viewer initialized successfully');
+            console.log('✓ DICOM Viewer initialized successfully');
             return true;
         } catch (error) {
             console.error('Failed to initialize DICOM viewer:', error);
-            this.showError('Unable to load DICOM image. Please contact support.');
+            this.showError('Unable to load image: ' + error.message);
             return false;
         }
     }
     
-    /**
-     * Initialize Cornerstone libraries
-     */
-    async initializeCornerstone() {
-        // Initialize Cornerstone Core
-        cornerstone.enable(this.element);
+    setupCanvas() {
+        // Create canvas if doesn't exist
+        if (!this.element.querySelector('canvas')) {
+            this.canvas = document.createElement('canvas');
+            this.canvas.width = this.element.offsetWidth || 512;
+            this.canvas.height = this.element.offsetHeight || 512;
+            this.canvas.style.width = '100%';
+            this.canvas.style.height = '100%';
+            this.element.innerHTML = '';
+            this.element.appendChild(this.canvas);
+        } else {
+            this.canvas = this.element.querySelector('canvas');
+        }
         
-        // Enable web image loader for demo purposes
-        // In production, use cornerstoneWADOImageLoader for real DICOM
-        cornerstoneWebImageLoader.external.cornerstone = cornerstone;
+        cornerstone.enable(this.canvas);
+        console.log('✓ Canvas enabled');
     }
     
-    /**
-     * Load DICOM image(s)
-     */
-    async loadDICOM() {
-        // For demo: Load image as web image
-        // For production DICOM: Use 'wadouri:' + dicomUrl
+    registerImageLoader() {
+        console.log('Checking image loader...');
+        console.log('cornerstoneWebImageLoader available:', typeof cornerstoneWebImageLoader !== 'undefined');
         
+        // CRITICAL: Ensure web image loader is registered
+        if (typeof cornerstoneWebImageLoader === 'undefined') {
+            console.error('❌ cornerstoneWebImageLoader not loaded!');
+            throw new Error('Web image loader library not loaded');
+        }
+        
+        // Set cornerstone reference
+        cornerstoneWebImageLoader.external.cornerstone = cornerstone;
+        
+        // ALWAYS register - force it even if already registered
+        try {
+            cornerstone.registerImageLoader('http', cornerstoneWebImageLoader.loadImage);
+            cornerstone.registerImageLoader('https', cornerstoneWebImageLoader.loadImage);
+            console.log('✓ Web image loader registered for http/https');
+        } catch (error) {
+            console.error('Failed to register image loader:', error);
+            throw error;
+        }
+    }
+    
+    async loadImage() {
+        console.log('Loading image from:', this.dicomUrl);
+        
+        // Determine image type
         if (this.dicomUrl.endsWith('.dcm')) {
-            // Real DICOM file
+            // DICOM file
             this.imageId = 'wadouri:' + this.dicomUrl;
         } else {
-            // Web image (PNG/JPG) for demo
-            this.imageId = this.dicomUrl;
+            // PNG/JPG - convert to absolute URL
+            this.imageId = this.makeAbsoluteUrl(this.dicomUrl);
         }
         
-        // Load the image
-        const image = await cornerstone.loadImage(this.imageId);
+        console.log('Image ID:', this.imageId);
         
-        // Display the image
-        cornerstone.displayImage(this.element, image);
-        
-        // Store viewport reference
-        this.viewport = cornerstone.getViewport(this.element);
-        
-        // If multiple slices, setup stack
-        if (this.imageIds.length > 1) {
-            const stack = {
-                currentImageIdIndex: 0,
-                imageIds: this.imageIds
-            };
-            cornerstoneTools.addStackStateManager(this.element, ['stack']);
-            cornerstoneTools.addToolState(this.element, 'stack', stack);
+        try {
+            const image = await cornerstone.loadImage(this.imageId);
+            console.log('✓ Image loaded:', image.width, 'x', image.height);
+            
+            await cornerstone.displayImage(this.canvas, image);
+            console.log('✓ Image displayed');
+            
+            this.viewport = cornerstone.getViewport(this.canvas);
+        } catch (error) {
+            console.error('Image load error:', error);
+            throw new Error('Failed to load image: ' + error.message);
         }
     }
     
-    /**
-     * Setup interaction handlers
-     */
+    makeAbsoluteUrl(url) {
+        // Convert relative URL to absolute URL with proper scheme
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url;
+        }
+        
+        // Create absolute URL
+        const baseUrl = window.location.origin;
+        if (url.startsWith('/')) {
+            return baseUrl + url;
+        } else {
+            return baseUrl + '/' + url;
+        }
+    }
+    
     setupInteractions() {
-        // Enable mouse click for hotspot detection
-        this.element.addEventListener('click', (event) => {
+        // Click handler
+        this.canvas.addEventListener('click', (event) => {
             this.handleClick(event);
         });
         
-        // Enable zoom with mouse wheel
-        this.element.addEventListener('wheel', (event) => {
+        // Zoom with mouse wheel
+        this.canvas.addEventListener('wheel', (event) => {
             event.preventDefault();
-            const viewport = cornerstone.getViewport(this.element);
+            const viewport = cornerstone.getViewport(this.canvas);
             const delta = event.deltaY < 0 ? 0.1 : -0.1;
-            viewport.scale += delta;
-            cornerstone.setViewport(this.element, viewport);
+            viewport.scale = Math.max(0.1, Math.min(10, viewport.scale + delta));
+            cornerstone.setViewport(this.canvas, viewport);
         });
         
-        // Enable pan with mouse drag
-        let isPanning = false;
-        let startX, startY;
+        // Pan with drag
+        let isDragging = false;
+        let lastX, lastY;
         
-        this.element.addEventListener('mousedown', (event) => {
-            if (event.button === 2) { // Right click
-                event.preventDefault();
-                isPanning = true;
-                startX = event.clientX;
-                startY = event.clientY;
-            }
+        this.canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            this.canvas.style.cursor = 'grabbing';
         });
         
-        this.element.addEventListener('mousemove', (event) => {
-            if (isPanning) {
-                const viewport = cornerstone.getViewport(this.element);
-                const deltaX = event.clientX - startX;
-                const deltaY = event.clientY - startY;
-                
+        this.canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - lastX;
+                const deltaY = e.clientY - lastY;
+                const viewport = cornerstone.getViewport(this.canvas);
                 viewport.translation.x += deltaX;
                 viewport.translation.y += deltaY;
-                
-                cornerstone.setViewport(this.element, viewport);
-                
-                startX = event.clientX;
-                startY = event.clientY;
+                cornerstone.setViewport(this.canvas, viewport);
+                lastX = e.clientX;
+                lastY = e.clientY;
             }
         });
         
-        this.element.addEventListener('mouseup', () => {
-            isPanning = false;
+        this.canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            this.canvas.style.cursor = 'crosshair';
         });
         
-        // Prevent context menu
-        this.element.addEventListener('contextmenu', (e) => e.preventDefault());
+        this.canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+            this.canvas.style.cursor = 'crosshair';
+        });
     }
     
-    /**
-     * Handle click on image for hotspot detection
-     */
     handleClick(event) {
-        const rect = this.element.getBoundingClientRect();
-        
-        // Get click coordinates relative to canvas
-        const clickX = event.clientX - rect.left;
-        const clickY = event.clientY - rect.top;
+        const rect = this.canvas.getBoundingClientRect();
+        const canvasX = event.clientX - rect.left;
+        const canvasY = event.clientY - rect.top;
         
         // Convert to image coordinates
-        const viewport = cornerstone.getViewport(this.element);
-        const image = cornerstone.getEnabledElement(this.element).image;
+        const imageCoords = this.canvasToImageCoordinates(canvasX, canvasY);
         
-        // Account for scale and translation
-        const imageX = (clickX / viewport.scale) - viewport.translation.x;
-        const imageY = (clickY / viewport.scale) - viewport.translation.y;
-        
-        // Store coordinates
         this.clickedCoordinates = {
-            x: Math.round(imageX),
-            y: Math.round(imageY),
-            canvasX: clickX,
-            canvasY: clickY
+            x: Math.round(imageCoords.x),
+            y: Math.round(imageCoords.y)
         };
         
-        console.log('Clicked coordinates:', this.clickedCoordinates);
+        console.log('Clicked at:', this.clickedCoordinates);
         
-        // Draw marker at click location
-        this.drawClickMarker(clickX, clickY);
+        // Draw marker
+        this.drawClickMarker(canvasX, canvasY);
         
-        // Check if click is in any hotspot
-        const hitHotspot = this.checkHotspot(imageX, imageY);
-        
-        // Trigger callback if provided
+        // Callback
         if (this.onCoordinateClick) {
+            const hitHotspot = this.checkHotspotHit(this.clickedCoordinates);
             this.onCoordinateClick(this.clickedCoordinates, hitHotspot);
         }
-        
-        return this.clickedCoordinates;
     }
     
-    /**
-     * Check if coordinates are within any hotspot region
-     */
-    checkHotspot(x, y) {
-        for (const region of this.hotspotRegions) {
-            const inX = x >= region.x && x <= region.x + region.width;
-            const inY = y >= region.y && y <= region.y + region.height;
+    canvasToImageCoordinates(canvasX, canvasY) {
+        try {
+            const viewport = cornerstone.getViewport(this.canvas);
+            const enabledElement = cornerstone.getEnabledElement(this.canvas);
+            const image = enabledElement.image;
             
-            if (inX && inY) {
-                console.log('Hit hotspot:', region.label || 'Unnamed region');
-                return region;
+            const imageX = (canvasX - viewport.translation.x) / viewport.scale;
+            const imageY = (canvasY - viewport.translation.y) / viewport.scale;
+            
+            return {
+                x: Math.max(0, Math.min(image.width, imageX)),
+                y: Math.max(0, Math.min(image.height, imageY))
+            };
+        } catch (error) {
+            return { x: canvasX, y: canvasY };
+        }
+    }
+    
+    checkHotspotHit(coords) {
+        for (const hotspot of this.hotspotRegions) {
+            if (coords.x >= hotspot.x && 
+                coords.x <= hotspot.x + hotspot.width &&
+                coords.y >= hotspot.y && 
+                coords.y <= hotspot.y + hotspot.height) {
+                return hotspot;
             }
         }
         return null;
     }
     
-    /**
-     * Draw click marker on canvas
-     */
     drawClickMarker(x, y) {
-        const canvas = this.element.querySelector('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Clear previous marker (redraw image first)
-        cornerstone.updateImage(this.element);
-        
-        // Draw crosshair
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 2;
-        
-        // Horizontal line
-        ctx.beginPath();
-        ctx.moveTo(x - 20, y);
-        ctx.lineTo(x + 20, y);
-        ctx.stroke();
-        
-        // Vertical line
-        ctx.beginPath();
-        ctx.moveTo(x, y - 20);
-        ctx.lineTo(x, y + 20);
-        ctx.stroke();
-        
-        // Circle
-        ctx.beginPath();
-        ctx.arc(x, y, 10, 0, 2 * Math.PI);
-        ctx.stroke();
-    }
-    
-    /**
-     * Setup windowing controls (brightness/contrast)
-     */
-    setupWindowing() {
-        // Add preset buttons
-        this.createPresetButtons();
-    }
-    
-    /**
-     * Create windowing preset buttons
-     */
-    createPresetButtons() {
-        const presetContainer = document.getElementById('windowing-presets');
-        if (!presetContainer) return;
-        
-        const presets = [
-            { name: 'Soft Tissue', ww: 400, wc: 40 },
-            { name: 'Lung', ww: 1500, wc: -600 },
-            { name: 'Bone', ww: 2000, wc: 500 },
-            { name: 'Brain', ww: 80, wc: 40 }
-        ];
-        
-        presets.forEach(preset => {
-            const button = document.createElement('button');
-            button.textContent = preset.name;
-            button.className = 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition';
-            button.onclick = () => this.applyWindowing(preset.ww, preset.wc);
-            presetContainer.appendChild(button);
-        });
-    }
-    
-    /**
-     * Apply windowing settings
-     */
-    applyWindowing(windowWidth, windowCenter) {
-        const viewport = cornerstone.getViewport(this.element);
-        viewport.voi.windowWidth = windowWidth;
-        viewport.voi.windowCenter = windowCenter;
-        cornerstone.setViewport(this.element, viewport);
-    }
-    
-    /**
-     * Navigate to specific slice (for multi-slice DICOM)
-     */
-    goToSlice(index) {
-        if (index >= 0 && index < this.imageIds.length) {
-            this.currentImageIndex = index;
-            cornerstone.loadImage(this.imageIds[index]).then(image => {
-                cornerstone.displayImage(this.element, image);
-            });
+        try {
+            cornerstone.draw(this.canvas);
+            const ctx = this.canvas.getContext('2d');
+            
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            
+            // Crosshair
+            ctx.beginPath();
+            ctx.moveTo(x - 20, y);
+            ctx.lineTo(x + 20, y);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y - 20);
+            ctx.lineTo(x, y + 20);
+            ctx.stroke();
+            
+            // Circle
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, 2 * Math.PI);
+            ctx.stroke();
+        } catch (error) {
+            console.warn('Could not draw marker:', error);
         }
     }
     
-    /**
-     * Load image stack (multiple slices)
-     */
-    async loadImageStack(imageUrls) {
-        this.imageIds = imageUrls;
-        await this.loadDICOM();
-    }
-    
-    /**
-     * Reset viewport to default
-     */
-    reset() {
-        cornerstone.reset(this.element);
-    }
-    
-    /**
-     * Show error message
-     */
     showError(message) {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'absolute inset-0 flex items-center justify-center bg-red-100';
-        errorDiv.innerHTML = `
-            <div class="text-center p-6">
-                <svg class="mx-auto h-12 w-12 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <p class="text-red-700 font-semibold">${message}</p>
+        this.element.innerHTML = `
+            <div class="flex items-center justify-center h-full bg-red-900 text-red-200 rounded-lg">
+                <div class="text-center p-6">
+                    <svg class="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p class="text-red-300 font-semibold mb-2">Image Viewer Error</p>
+                    <p class="text-sm text-red-400">${message}</p>
+                </div>
             </div>
         `;
-        this.element.appendChild(errorDiv);
     }
     
-    /**
-     * Get clicked coordinates for submission
-     */
     getClickedCoordinates() {
         return this.clickedCoordinates;
     }
     
-    /**
-     * Cleanup
-     */
     destroy() {
-        cornerstone.disable(this.element);
+        try {
+            if (this.canvas) {
+                cornerstone.disable(this.canvas);
+            }
+        } catch (error) {
+            console.warn('Cleanup error:', error);
+        }
     }
 }
 
-// Export for use in other scripts
+// Export
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = DICOMViewer;
 }
