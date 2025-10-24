@@ -3,6 +3,10 @@
 
 {% block content_title %}
     <h1>Test Attempts Analytics</h1>
+    <div style="margin: 20px 0;">
+        <a href="{% url 'admin:testattempt_analytics' %}" class="button">📊 Full Analytics Dashboard</a>
+        <a href="{% url 'admin:testattempt_export' %}" class="button">📥 Export to Excel</a>
+    </div>
 {% endblock %}
 
 {% block result_list %}

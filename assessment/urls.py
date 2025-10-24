@@ -2,7 +2,7 @@
 URL Configuration for Assessment App
 """
 from django.urls import path
-from assessment import proctoring_views
+from assessment import proctoring_views, analytics_views
 from . import views
 
 urlpatterns = [
@@ -32,4 +32,11 @@ urlpatterns = [
     path('proctoring/snapshot/<int:attempt_id>/', proctoring_views.upload_proctoring_snapshot, name='upload_snapshot'),
     path('proctoring/event/<int:attempt_id>/', proctoring_views.log_proctoring_event, name='log_event'),
     path('test/<int:test_id>/consent/', proctoring_views.test_consent_form, name='test_consent'),
+    
+    # User Analytics
+    path('analytics/', analytics_views.user_analytics_dashboard, name='user_analytics'),
+    
+    # Admin Analytics (staff only)
+    path('admin-analytics/', analytics_views.admin_analytics_dashboard, name='admin_analytics'),
+    path('admin-analytics/export/', analytics_views.export_analytics_excel, name='export_analytics'),
 ]

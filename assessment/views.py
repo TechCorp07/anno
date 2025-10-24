@@ -240,6 +240,19 @@ def submit_test(request, attempt_id):
     attempt.status = 'completed'
     attempt.completed_at = timezone.now()
     
+    question_ids = attempt.question_set or []
+    for question_id in question_ids:
+        question = Question.objects.get(id=question_id)
+        # Create Answer object if it doesn't exist (for unanswered questions)
+        answer, created = Answer.objects.get_or_create(
+            attempt=attempt,
+            question=question,
+            defaults={'is_correct': False}  # Unanswered = incorrect
+        )
+        # Check answer for all (in case some weren't checked when submitted)
+        if answer.is_correct is None:
+            answer.check_answer()
+            
     # Calculate score
     attempt.calculate_score()
     

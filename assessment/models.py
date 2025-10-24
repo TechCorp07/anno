@@ -445,15 +445,24 @@ class Answer(models.Model):
         if self.question.question_type in ['mcq', 'image', 'spatial', 'verbal', 'numerical', 'pattern', 'error_detection']:
             if self.selected_answer:
                 self.is_correct = (self.selected_answer == self.question.correct_answer)
-                self.save()
+            else:
+                self.is_correct = False
+            self.save()
+            
         elif self.question.question_type == 'dicom':
             # Check if clicked coordinates are within hotspot regions
             if self.clicked_coordinates and self.question.hotspot_coordinates:
                 self.is_correct = self._check_hotspot_click()
-                self.save()
+            else:
+                self.is_correct = False
+            self.save()
+            
         elif self.question.question_type == 'annotation':
             # Dice coefficient calculated separately via command
             self.is_correct = self.dice_score >= self.question.dice_threshold if self.dice_score else False
+            self.save()
+        else:
+            self.is_correct = False
             self.save()
         
         return self.is_correct

@@ -4,13 +4,14 @@ Includes bulk Excel import, cohort management, and analytics
 """
 from django.contrib import admin
 from django.shortcuts import render, redirect
-from django.urls import path
+from django.urls import path, reverse
 from django.contrib import messages
 from django.db.models import Avg, Count, Q
 from django.utils.html import format_html
 from django.http import HttpResponse
 import openpyxl
 from io import BytesIO
+import json
 import os
 
 from .models import (
@@ -68,7 +69,16 @@ class QuestionAdmin(admin.ModelAdmin):
     list_editable = ['is_active', 'difficulty_level']
     
     def question_text_short(self, obj):
-        return obj.question_text[:60] + '...' if len(obj.question_text) > 60 else obj.question_text
+        text = obj.question_text[:60] + '...' if len(obj.question_text) > 60 else obj.question_text
+        
+        if obj.question_type in ['dicom', 'image'] and obj.question_image:
+            coord_url = reverse('admin:question_set_coordinates', args=[obj.id])
+            return format_html(
+                '{} <a href="{}" style="margin-left: 10px;" class="button">📍 Set Coordinates</a>',
+                text, coord_url
+            )
+        return text
+        
     question_text_short.short_description = 'Question'
     
     fieldsets = (
@@ -103,9 +113,46 @@ class QuestionAdmin(admin.ModelAdmin):
                  name='question_bulk_import'),
             path('download-template/', self.admin_site.admin_view(self.download_template_view),
                  name='question_download_template'),
+            path('<int:question_id>/set-coordinates/', self.admin_site.admin_view(self.set_coordinates_view), 
+             name='question_set_coordinates'),
         ]
         return custom_urls + urls
     
+    def set_coordinates_view(self, request, question_id):
+        """Interactive coordinate picker for DICOM/image questions"""
+        question = self.get_object(request, question_id)
+        
+        if request.method == 'POST':
+            coordinates_json = request.POST.get('hotspot_coordinates', '[]')
+            try:
+                coordinates = json.loads(coordinates_json)
+                question.hotspot_coordinates = coordinates
+                question.save()
+                messages.success(request, f'Hotspot coordinates saved for question #{question_id}')
+                return redirect('admin:assessment_question_change', question_id)
+            except json.JSONDecodeError:
+                messages.error(request, 'Invalid coordinate data')
+        
+        # Get image URL
+        image_url = question.question_image.url if question.question_image else None
+        
+        if not image_url:
+            messages.error(request, 'No image uploaded for this question')
+            return redirect('admin:assessment_question_change', question_id)
+        
+        # Convert existing coordinates to JSON
+        existing_hotspots = json.dumps(question.hotspot_coordinates or [])
+        
+        context = {
+            'question': question,
+            'image_url': image_url,
+            'existing_hotspots': existing_hotspots,
+            'opts': self.model._meta,
+            'has_view_permission': self.has_view_permission(request, question),
+        }
+        
+        return render(request, 'admin/question_coordinate_picker.html', context)
+
     def bulk_import_view(self, request):
         """Handle bulk Excel import with image folder"""
         if request.method == 'POST':
@@ -343,6 +390,28 @@ class TestAttemptAdmin(admin.ModelAdmin):
     readonly_fields = ['user', 'test', 'started_at', 'completed_at', 'time_spent_seconds', 
                        'ip_address', 'user_agent', 'similarity_score']
     inlines = [AnswerInline]
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('analytics/', 
+                 self.admin_site.admin_view(self.analytics_dashboard_view),
+                 name='testattempt_analytics'),
+            path('export-analytics/', 
+                 self.admin_site.admin_view(self.export_analytics_view),
+                 name='testattempt_export'),
+        ]
+        return custom_urls + urls
+    
+    def analytics_dashboard_view(self, request):
+        """Full analytics dashboard"""
+        from assessment.analytics_views import admin_analytics_dashboard
+        return admin_analytics_dashboard(request)
+    
+    def export_analytics_view(self, request):
+        """Export analytics to Excel"""
+        from assessment.analytics_views import export_analytics_excel
+        return export_analytics_excel(request)
     
     def score_display(self, obj):
         if obj.score is not None:

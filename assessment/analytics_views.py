@@ -246,7 +246,7 @@ def admin_analytics_dashboard(request):
         'hardest_questions': question_stats,
     }
     
-    return render(request, 'assessment/admin_analytics.html', context)
+    return render(request, 'admin/admin_analytics.html', context)
 
 
 def export_analytics_excel(request):

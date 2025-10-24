@@ -1,0 +1,250 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+<style>
+    #image-container {
+        position: relative;
+        display: inline-block;
+        border: 2px solid #ddd;
+        margin: 20px 0;
+    }
+    #preview-image {
+        max-width: 800px;
+        height: auto;
+        display: block;
+    }
+    .hotspot-marker {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 0, 0, 0.6);
+        border: 2px solid red;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+    }
+    .hotspot-box {
+        position: absolute;
+        border: 3px solid #4CAF50;
+        background: rgba(76, 175, 80, 0.2);
+        cursor: move;
+    }
+    .instructions {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 5px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content">
+    <h1>Set Hotspot Coordinates for Question #{{ question.id }}</h1>
+    
+    <div class="instructions">
+        <h3>📍 How to Set Coordinates:</h3>
+        <ol>
+            <li><strong>Single Point:</strong> Click once on the correct location</li>
+            <li><strong>Region:</strong> Click and drag to create a rectangular region</li>
+            <li>You can create multiple hotspot regions for one question</li>
+            <li>Click "Save Coordinates" when done</li>
+        </ol>
+    </div>
+
+    <form method="post" id="coordinate-form">
+        {% csrf_token %}
+        
+        <div id="image-container">
+            <img id="preview-image" src="{{ image_url }}" alt="Question Image">
+        </div>
+
+        <input type="hidden" name="hotspot_coordinates" id="hotspot_coordinates" value="">
+        
+        <div style="margin: 20px 0;">
+            <button type="button" onclick="clearHotspots()" class="button">Clear All</button>
+            <button type="submit" class="button default">Save Coordinates</button>
+            <a href="{% url 'admin:assessment_question_change' question.id %}" class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+
+    <div class="module">
+        <h3>Current Hotspot Regions:</h3>
+        <div id="coordinates-list" style="background: #f9f9f9; padding: 10px; min-height: 50px;">
+            <em>No hotspots defined yet. Click on the image above.</em>
+        </div>
+    </div>
+</div>
+
+<script>
+let hotspots = {{ existing_hotspots|safe }};
+let isDragging = false;
+let startX, startY;
+let currentBox = null;
+
+const container = document.getElementById('image-container');
+const image = document.getElementById('preview-image');
+
+// Wait for image to load to get correct dimensions
+image.onload = function() {
+    renderHotspots();
+};
+
+container.addEventListener('mousedown', function(e) {
+    if (e.target === image) {
+        const rect = image.getBoundingClientRect();
+        startX = e.clientX - rect.left;
+        startY = e.clientY - rect.top;
+        isDragging = true;
+        
+        // Create temporary box
+        currentBox = document.createElement('div');
+        currentBox.className = 'hotspot-box';
+        currentBox.style.left = startX + 'px';
+        currentBox.style.top = startY + 'px';
+        currentBox.style.width = '0px';
+        currentBox.style.height = '0px';
+        container.appendChild(currentBox);
+    }
+});
+
+container.addEventListener('mousemove', function(e) {
+    if (isDragging && currentBox) {
+        const rect = image.getBoundingClientRect();
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
+        
+        const width = currentX - startX;
+        const height = currentY - startY;
+        
+        if (width > 0) {
+            currentBox.style.width = width + 'px';
+        }
+        if (height > 0) {
+            currentBox.style.height = height + 'px';
+        }
+    }
+});
+
+container.addEventListener('mouseup', function(e) {
+    if (isDragging) {
+        isDragging = false;
+        const rect = image.getBoundingClientRect();
+        const endX = e.clientX - rect.left;
+        const endY = e.clientY - rect.top;
+        
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+        
+        // Only save if box is larger than 10px
+        if (width > 10 && height > 10) {
+            // Normalize coordinates to image dimensions
+            const imgWidth = image.naturalWidth;
+            const imgHeight = image.naturalHeight;
+            const displayWidth = image.width;
+            const displayHeight = image.height;
+            
+            const scaleX = imgWidth / displayWidth;
+            const scaleY = imgHeight / displayHeight;
+            
+            hotspots.push({
+                x: Math.round(Math.min(startX, endX) * scaleX),
+                y: Math.round(Math.min(startY, endY) * scaleY),
+                width: Math.round(width * scaleX),
+                height: Math.round(height * scaleY),
+                label: `Region ${hotspots.length + 1}`
+            });
+            
+            updateCoordinates();
+            renderHotspots();
+        } else if (currentBox) {
+            // Small drag = single point
+            const imgWidth = image.naturalWidth;
+            const imgHeight = image.naturalHeight;
+            const displayWidth = image.width;
+            const displayHeight = image.height;
+            
+            const scaleX = imgWidth / displayWidth;
+            const scaleY = imgHeight / displayHeight;
+            
+            hotspots.push({
+                x: Math.round(startX * scaleX),
+                y: Math.round(startY * scaleY),
+                width: 50,  // Default small region
+                height: 50,
+                label: `Point ${hotspots.length + 1}`
+            });
+            
+            updateCoordinates();
+            renderHotspots();
+        }
+        
+        if (currentBox) {
+            currentBox.remove();
+            currentBox = null;
+        }
+    }
+});
+
+function renderHotspots() {
+    // Clear existing markers
+    document.querySelectorAll('.hotspot-box, .hotspot-marker').forEach(el => el.remove());
+    
+    const imgWidth = image.naturalWidth;
+    const imgHeight = image.naturalHeight;
+    const displayWidth = image.width;
+    const displayHeight = image.height;
+    
+    const scaleX = displayWidth / imgWidth;
+    const scaleY = displayHeight / imgHeight;
+    
+    hotspots.forEach((hotspot, index) => {
+        const box = document.createElement('div');
+        box.className = 'hotspot-box';
+        box.style.left = (hotspot.x * scaleX) + 'px';
+        box.style.top = (hotspot.y * scaleY) + 'px';
+        box.style.width = (hotspot.width * scaleX) + 'px';
+        box.style.height = (hotspot.height * scaleY) + 'px';
+        box.title = hotspot.label;
+        
+        // Add delete button
+        box.innerHTML = `<span style="position: absolute; top: -10px; right: -10px; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; text-align: center; cursor: pointer;" onclick="deleteHotspot(${index})">×</span>`;
+        
+        container.appendChild(box);
+    });
+    
+    // Update coordinates list
+    const list = document.getElementById('coordinates-list');
+    if (hotspots.length === 0) {
+        list.innerHTML = '<em>No hotspots defined yet. Click on the image above.</em>';
+    } else {
+        list.innerHTML = '<ul>' + hotspots.map((h, i) => 
+            `<li><strong>${h.label}:</strong> x=${h.x}, y=${h.y}, width=${h.width}, height=${h.height} 
+            <button type="button" onclick="deleteHotspot(${i})" style="margin-left: 10px;">Delete</button></li>`
+        ).join('') + '</ul>';
+    }
+}
+
+function updateCoordinates() {
+    document.getElementById('hotspot_coordinates').value = JSON.stringify(hotspots);
+}
+
+function clearHotspots() {
+    if (confirm('Clear all hotspots?')) {
+        hotspots = [];
+        updateCoordinates();
+        renderHotspots();
+    }
+}
+
+function deleteHotspot(index) {
+    hotspots.splice(index, 1);
+    updateCoordinates();
+    renderHotspots();
+}
+
+// Initialize
+updateCoordinates();
+</script>
+{% endblock %}
