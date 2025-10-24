@@ -9,6 +9,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from assessment.utils import create_test_attempts_bulk
+from django.contrib.auth.models import User
 import json
 
 from .models import Test, TestAttempt, Question, Answer
@@ -387,3 +389,6 @@ def submit_dicom_answer(request, attempt_id):
             'success': False,
             'error': 'Invalid answer format'
         }, status=400)
+
+#users = User.objects.filter(cohort_memberships__cohort=my_cohort)
+#attempts = create_test_attempts_bulk(test, users)
