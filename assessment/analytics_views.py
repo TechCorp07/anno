@@ -22,11 +22,12 @@ def user_analytics_dashboard(request):
         status='completed'
     ).select_related('test__category').order_by('-completed_at')
     
+    avg_score_decimal = attempts.aggregate(Avg('score'))['score__avg']
     context = {
         'attempts': attempts,
         'total_tests': attempts.count(),
         'passed_tests': attempts.filter(passed=True).count(),
-        'avg_score': attempts.aggregate(Avg('score'))['score__avg'] or 0,
+        'avg_score': float(avg_score_decimal) if avg_score_decimal is not None else 0
     }
     
     # Calculate percentile ranking for each category
@@ -214,12 +215,13 @@ def admin_analytics_dashboard(request):
         )
         
         if cat_attempts.exists():
+            avg_score_decimal = cat_attempts.aggregate(Avg('score'))['score__avg']
             category_stats.append({
                 'name': category.name,
                 'stage': category.stage_number,
                 'attempts': cat_attempts.count(),
                 'pass_rate': cat_attempts.filter(passed=True).count() / cat_attempts.count() * 100,
-                'avg_score': cat_attempts.aggregate(Avg('score'))['score__avg']
+                'avg_score': float(avg_score_decimal) if avg_score_decimal is not None else 0
             })
     
     # Flagged attempts

@@ -420,8 +420,9 @@ class TestAttemptAdmin(admin.ModelAdmin):
     def score_display(self, obj):
         if obj.score is not None:
             color = 'green' if obj.passed else 'red'
-            return format_html('<b style="color: {};">{:.2f}%</b>', color, obj.score)
+            return format_html('<b style="color: {};">{:.2f}%</b>', color, float(obj.score))
         return '-'
+    
     score_display.short_description = 'Score'
     
     fieldsets = (
@@ -456,7 +457,11 @@ class TestAttemptAdmin(admin.ModelAdmin):
         extra_context['total_attempts'] = qs.count()
         extra_context['completed_attempts'] = completed.count()
         extra_context['pass_rate'] = completed.filter(passed=True).count() / completed.count() * 100 if completed.count() > 0 else 0
-        extra_context['avg_score'] = completed.aggregate(Avg('score'))['score__avg'] or 0
+        
+        # Convert Decimal to float for proper template formatting
+        avg_score_decimal = completed.aggregate(Avg('score'))['score__avg']
+        extra_context['avg_score'] = float(avg_score_decimal) if avg_score_decimal is not None else 0
+        
         extra_context['flagged_count'] = qs.filter(flagged_for_plagiarism=True).count()
         
         # Per-category statistics
@@ -464,17 +469,17 @@ class TestAttemptAdmin(admin.ModelAdmin):
         for category in TestCategory.objects.all():
             cat_attempts = completed.filter(test__category=category)
             if cat_attempts.exists():
+                avg_score_decimal = cat_attempts.aggregate(Avg('score'))['score__avg']
                 category_stats.append({
                     'name': category.name,
                     'stage': category.stage_number,
                     'attempts': cat_attempts.count(),
                     'pass_rate': cat_attempts.filter(passed=True).count() / cat_attempts.count() * 100,
-                    'avg_score': cat_attempts.aggregate(Avg('score'))['score__avg'],
+                    'avg_score': float(avg_score_decimal) if avg_score_decimal is not None else 0,
                 })
         extra_context['category_stats'] = category_stats
         
         return super().changelist_view(request, extra_context=extra_context)
-
 
 @admin.register(ProctoringEvent)
 class ProctoringEventAdmin(admin.ModelAdmin):
