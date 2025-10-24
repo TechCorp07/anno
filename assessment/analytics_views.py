@@ -2,10 +2,10 @@
 Analytics Dashboard Views
 Features: Percentile rankings, skill gap analysis, TAO rubric scoring
 """
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Avg, Count, Q, F
-from assessment.models import TestAttempt, Answer, TestCategory, QuestionTopic, Test
+from assessment.models import TestAttempt, Answer, TestCategory, ProctoringEvent, Test
 from collections import defaultdict
 import numpy as np
 
@@ -313,3 +313,4 @@ def export_analytics_excel(request):
     response['Content-Disposition'] = 'attachment; filename=analytics_export.xlsx'
     
     return response
+

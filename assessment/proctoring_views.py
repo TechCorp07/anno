@@ -3,6 +3,7 @@
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -254,3 +255,43 @@ def determine_event_severity(event_type, metadata):
         return 'warning'
     else:
         return 'info'
+
+
+@staff_member_required
+def view_candidate_images(request, attempt_id):
+    """
+    Display all proctoring images for a specific test attempt in a gallery view.
+    This allows admins to review all webcam and screen snapshots at once.
+    """
+    attempt = get_object_or_404(TestAttempt, id=attempt_id)
+    
+    # Get all events with images, ordered by timestamp
+    webcam_images = attempt.proctoring_events.filter(
+        event_type='webcam',
+        image_file__isnull=False
+    ).order_by('timestamp')
+    
+    screen_images = attempt.proctoring_events.filter(
+        event_type='screen',
+        image_file__isnull=False
+    ).order_by('timestamp')
+    
+    # Get critical events for flagging
+    critical_events = attempt.proctoring_events.filter(
+        severity='critical'
+    ).order_by('timestamp')
+    
+    context = {
+        'attempt': attempt,
+        'candidate': attempt.user,
+        'test': attempt.test,
+        'webcam_images': webcam_images,
+        'screen_images': screen_images,
+        'critical_events': critical_events,
+        'total_images': webcam_images.count() + screen_images.count(),
+        'webcam_count': webcam_images.count(),
+        'screen_count': screen_images.count(),
+    }
+    
+    return render(request, 'proctoring/candidate_images.html', context)
+

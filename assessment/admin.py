@@ -406,19 +406,26 @@ class TestAttemptAdmin(admin.ModelAdmin):
     consent_status.short_description = 'Consent'
     
     def view_proctoring(self, obj):
-        """Link to view all proctoring events"""
+        """Link to view all proctoring events and images"""
         count = obj.proctoring_events.count()
         critical = obj.proctoring_events.filter(severity='critical').count()
-        url = f'/admin/assessment/proctoringevent/?attempt__id__exact={obj.id}'
+        images_count = obj.proctoring_events.filter(image_file__isnull=False).count()
+        
+        # Link to events list
+        events_url = f'/admin/assessment/proctoringevent/?attempt__id__exact={obj.id}'
+        # Link to image gallery
+        gallery_url = f'/proctoring/images/{obj.id}/'
         
         if critical > 0:
             return format_html(
-                '<a href="{}" style="color: #dc2626; font-weight: bold;">🚨 {} events ({} critical)</a>',
-                url, count, critical
+                '<a href="{}" style="color: #dc2626; font-weight: bold;">🚨 {} events ({} critical)</a><br>'
+                '<a href="{}" style="color: #3b82f6; font-weight: bold;">📸 View {} Images</a>',
+                events_url, count, critical, gallery_url, images_count
             )
         return format_html(
-            '<a href="{}">{} events</a>',
-            url, count
+            '<a href="{}">{} events</a><br>'
+            '<a href="{}" style="color: #3b82f6;">📸 View {} Images</a>',
+            events_url, count, gallery_url, images_count
         )
     view_proctoring.short_description = 'Proctoring'
     
