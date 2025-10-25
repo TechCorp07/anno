@@ -62,11 +62,11 @@
     }
     
     .form-section {
-        display: none;
+        display: none !important;
     }
     
     .form-section.active {
-        display: block;
+        display: block !important;
         animation: fadeIn 0.3s ease-in;
     }
     
@@ -435,6 +435,7 @@
 </div>
 
 <script>
+ document.addEventListener('DOMContentLoaded', function() {
     let currentStep = 1;
     const totalSteps = 4;
     
@@ -568,5 +569,7 @@
     
     // Initialize
     showStep(1);
+    console.log('Registration form ready');
+  });
 </script>
 {% endblock %}
