@@ -25,6 +25,9 @@ urlpatterns = [
     path('attempt/<int:attempt_id>/dicom/<int:question_id>/', views.dicom_question_view, name='dicom_question'),
     path('attempt/<int:attempt_id>/submit-dicom/', views.submit_dicom_answer, name='submit_dicom_answer'),
     
+    path('terms-and-conditions/', views.terms_conditions, name='terms_conditions'),
+    path('privacy-policy/', views.privacy_policy, name='privacy_policy'),
+    
     # HTMX endpoints
     path('attempt/<int:attempt_id>/answer/', views.submit_answer, name='submit_answer'),
     path('attempt/<int:attempt_id>/time/', views.get_time_remaining, name='get_time_remaining'),

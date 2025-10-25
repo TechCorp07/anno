@@ -3,7 +3,7 @@ Enhanced Admin Configuration for Assessment App
 Includes bulk Excel import, cohort management, and analytics
 """
 
-from datetime import timezone
+from django.utils import timezone
 from django.contrib import admin
 from django.shortcuts import render, redirect
 from django.urls import path, reverse
@@ -24,10 +24,63 @@ import re
 import os
 
 from .models import (
-    TestCategory, QuestionTopic, Question, Test, TestAttempt, Answer,
+    TestCategory, QuestionTopic, Question, Test, TestAttempt, Answer, UserProfile,
     Cohort, CohortMembership, ProctoringEvent, PlagiarismFlag, TestTopicDistribution
 )
 
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = [
+        'user', 'phone_number', 'province', 'city', 
+        'employment_status', 'education_level', 
+        'profile_completed', 'created_at'
+    ]
+    list_filter = [
+        'province', 'employment_status', 'education_level', 
+        'has_mri_experience', 'profile_completed'
+    ]
+    search_fields = [
+        'user__username', 'user__email', 'user__first_name', 
+        'user__last_name', 'phone_number', 'national_id', 'city'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'profile_completed']
+    
+    fieldsets = (
+        ('User Account', {
+            'fields': ('user',)
+        }),
+        ('Personal Information', {
+            'fields': (
+                'phone_number', 'date_of_birth', 'national_id', 'gender'
+            )
+        }),
+        ('Location', {
+            'fields': ('province', 'city', 'address')
+        }),
+        ('Professional Background', {
+            'fields': (
+                'employment_status', 'current_employer', 
+                'years_of_experience', 'has_mri_experience',
+                'education_level', 'institution_attended', 
+                'graduation_year'
+            )
+        }),
+        ('Certifications', {
+            'fields': ('radiography_license_number', 'license_expiry_date')
+        }),
+        ('Consents', {
+            'fields': (
+                'terms_accepted', 'terms_accepted_at',
+                'data_processing_consent', 'data_consent_at'
+            )
+        }),
+        ('Profile Status', {
+            'fields': ('profile_completed', 'profile_photo')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
 
 class QuestionTopicInline(admin.TabularInline):
     model = QuestionTopic

@@ -1,90 +1,572 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Register - MRI Training Platform{% endblock %}
 
+{% block extra_head %}
+<style>
+    :root {
+        --peakpoint-green: #00FF66;
+        --peakpoint-dark: #0A1628;
+        --peakpoint-navy: #1A2947;
+    }
+    
+    .progress-bar {
+        height: 6px;
+        background: #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--peakpoint-green) 0%, #00CC52 100%);
+        transition: width 0.3s ease;
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+    }
+    
+    .step {
+        flex: 1;
+        text-align: center;
+        position: relative;
+    }
+    
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e5e7eb;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.5rem;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .step.active .step-circle {
+        background: var(--peakpoint-green);
+        color: var(--peakpoint-dark);
+        box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
+    }
+    
+    .step.completed .step-circle {
+        background: var(--peakpoint-navy);
+        color: var(--peakpoint-green);
+    }
+    
+    .form-section {
+        display: none;
+    }
+    
+    .form-section.active {
+        display: block;
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--peakpoint-green) 0%, #00CC52 100%);
+        color: var(--peakpoint-dark);
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .btn-primary:hover {
+        box-shadow: 0 0 25px rgba(0, 255, 102, 0.5);
+        transform: translateY(-2px);
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .required-field::after {
+        content: "*";
+        color: #ef4444;
+        margin-left: 4px;
+    }
+    
+    .checkbox-label {
+        display: flex;
+        align-items: start;
+        gap: 0.75rem;
+    }
+    
+    .logo-container {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .logo-container img {
+        max-width: 300px;
+        height: auto;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-md mx-auto">
-    <div class="bg-white rounded-lg shadow-lg p-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Create Account</h1>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4">
+    <div class="max-w-4xl mx-auto">
+        <!-- Logo -->
+        <div class="logo-container">
+            <img src="{% static 'images/peakpoint-logo.png' %}" alt="Peakpoint Services" />
+            <h1 class="text-3xl font-bold mt-4" style="color: var(--peakpoint-navy);">
+                MRI Data Annotation Technicial Training Platform
+            </h1>
+            <p class="text-gray-600 mt-2">Create your candidate account</p>
+        </div>
         
-        <form method="post" class="space-y-4">
-            {% csrf_token %}
+        <!-- Registration Card -->
+        <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12">
             
-            <div>
-                <label for="id_username" class="block text-sm font-medium text-gray-700 mb-1">
-                    Username
-                </label>
-                {{ form.username }}
-                {% if form.username.help_text %}
-                <p class="text-xs text-gray-500 mt-1">{{ form.username.help_text|safe }}</p>
-                {% endif %}
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step active" data-step="1">
+                    <div class="step-circle">1</div>
+                    <div class="text-sm font-medium">Account</div>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-circle">2</div>
+                    <div class="text-sm font-medium">Personal</div>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-circle">3</div>
+                    <div class="text-sm font-medium">Professional</div>
+                </div>
+                <div class="step" data-step="4">
+                    <div class="step-circle">4</div>
+                    <div class="text-sm font-medium">Review</div>
+                </div>
             </div>
             
-            <div>
-                <label for="id_password1" class="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                </label>
-                {{ form.password1 }}
-                {% if form.password1.help_text %}
-                <p class="text-xs text-gray-500 mt-1">{{ form.password1.help_text|safe }}</p>
-                {% endif %}
+            <!-- Progress Bar -->
+            <div class="progress-bar mb-8">
+                <div class="progress-fill" id="progressFill" style="width: 25%"></div>
             </div>
             
-            <div>
-                <label for="id_password2" class="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password
-                </label>
-                {{ form.password2 }}
-            </div>
-            
-            {% if form.errors %}
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                <p class="font-medium">Please correct the following errors:</p>
-                <ul class="list-disc list-inside mt-2">
-                    {% for field, errors in form.errors.items %}
-                        {% for error in errors %}
-                            <li>{{ error }}</li>
+            <!-- Form -->
+            <form method="post" id="registrationForm" novalidate>
+                {% csrf_token %}
+                
+                <!-- Step 1: Account Information -->
+                <div class="form-section active" data-section="1">
+                    <h2 class="text-2xl font-bold mb-6" style="color: var(--peakpoint-navy);">
+                        Account Information
+                    </h2>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="form-label required-field">Username</label>
+                            {{ form.username }}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.username.help_text|safe }}</p>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Email</label>
+                            {{ form.email }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">First Name</label>
+                            {{ form.first_name }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Password</label>
+                            {{ form.password1 }}
+                            <p class="text-xs text-gray-500 mt-1">{{ form.password1.help_text|safe }}</p>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Confirm Password</label>
+                            {{ form.password2 }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Personal Information -->
+                <div class="form-section" data-section="2">
+                    <h2 class="text-2xl font-bold mb-6" style="color: var(--peakpoint-navy);">
+                        Personal Information
+                    </h2>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="form-label required-field">Phone Number</label>
+                            {{ form.phone_number }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Date of Birth</label>
+                            {{ form.date_of_birth }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">National ID</label>
+                            {{ form.national_id }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Gender</label>
+                            {{ form.gender }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Province</label>
+                            {{ form.province }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">City/Town</label>
+                            {{ form.city }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Professional Information -->
+                <div class="form-section" data-section="3">
+                    <h2 class="text-2xl font-bold mb-6" style="color: var(--peakpoint-navy);">
+                        Professional Background
+                    </h2>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="form-label required-field">Employment Status</label>
+                            {{ form.employment_status }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">Current Employer</label>
+                            {{ form.current_employer }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Years of Experience</label>
+                            {{ form.years_of_experience }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label required-field">Education Level</label>
+                            {{ form.education_level }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">Institution Attended</label>
+                            {{ form.institution_attended }}
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">License Number</label>
+                            {{ form.radiography_license_number }}
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <label class="checkbox-label">
+                                {{ form.has_mri_experience }}
+                                <span class="text-sm text-gray-700">I have previous MRI experience</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Review & Consent -->
+                <div class="form-section" data-section="4">
+                    <h2 class="text-2xl font-bold mb-6" style="color: var(--peakpoint-navy);">
+                        Review & Consent
+                    </h2>
+                    
+                    <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                        <h3 class="font-semibold mb-4">Please review your information</h3>
+                        <div id="reviewContent" class="text-sm text-gray-700 space-y-2">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <!-- Terms and Conditions Checkbox -->
+                        <label class="checkbox-label">
+                            {{ form.terms_accepted }}
+                            <span class="text-sm">
+                                I have read and agree to the 
+                                <a href="{% url 'terms_conditions' %}" 
+                                target="_blank" 
+                                class="text-green-600 hover:underline font-semibold"
+                                onclick="return openLegalModal('terms');">
+                                    Terms and Conditions
+                                </a>
+                                <span class="text-red-500">*</span>
+                            </span>
+                        </label>
+                        
+                        <!-- Privacy Policy Checkbox -->
+                        <label class="checkbox-label">
+                            {{ form.data_processing_consent }}
+                            <span class="text-sm">
+                                I consent to the processing of my personal data as described in the 
+                                <a href="{% url 'privacy_policy' %}" 
+                                target="_blank" 
+                                class="text-green-600 hover:underline font-semibold"
+                                onclick="return openLegalModal('privacy');">
+                                    Privacy Policy
+                                </a>
+                                <span class="text-red-500">*</span>
+                            </span>
+                        </label>
+                        
+                        <!-- Additional Information -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
+                            <p class="text-blue-900 mb-2">
+                                <strong>📋 What you're agreeing to:</strong>
+                            </p>
+                            <ul class="text-blue-800 space-y-1 ml-4">
+                                <li>• Account creation and Platform use terms</li>
+                                <li>• Collection and processing of your personal data</li>
+                                <li>• Proctored testing with webcam monitoring</li>
+                                <li>• Compliance with the Data Protection Act</li>
+                            </ul>
+                            <p class="text-blue-900 mt-3">
+                                <strong>Note:</strong> A separate proctoring consent will be required before taking each test.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Error Display -->
+                {% if form.errors %}
+                <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-lg mb-6">
+                    <p class="font-semibold mb-2">Please correct the following errors:</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ field }}: {{ error }}</li>
+                            {% endfor %}
                         {% endfor %}
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between mt-8">
+                    <button type="button" 
+                            id="prevBtn" 
+                            class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
+                            style="display: none;">
+                        ← Previous
+                    </button>
+                    
+                    <button type="button" 
+                            id="nextBtn" 
+                            class="ml-auto px-8 py-3 btn-primary rounded-lg font-semibold">
+                        Next →
+                    </button>
+                    
+                    <button type="submit" 
+                            id="submitBtn" 
+                            class="ml-auto px-8 py-3 btn-primary rounded-lg font-semibold"
+                            style="display: none;">
+                        Create Account 🚀
+                    </button>
+                </div>
+            </form>
             
-            <button type="submit" 
-                    class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold">
-                Create Account
-            </button>
-        </form>
-        
-        <div class="mt-6 text-center">
-            <p class="text-gray-600">
-                Already have an account? 
-                <a href="{% url 'login' %}" class="text-blue-600 hover:text-blue-700 font-semibold">
-                    Login here
-                </a>
-            </p>
+            <!-- Login Link -->
+            <div class="mt-8 text-center">
+                <p class="text-gray-600">
+                    Already have an account? 
+                    <a href="{% url 'login' %}" class="font-semibold hover:underline" style="color: var(--peakpoint-green);">
+                        Login here
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+    <!-- Legal Document Modal -->
+    <div id="legalModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 overflow-y-auto">
+        <div class="min-h-screen px-4 flex items-center justify-center">
+            <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                <!-- Modal Header -->
+                <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4 flex justify-between items-center">
+                    <h2 id="modalTitle" class="text-2xl font-bold text-white"></h2>
+                    <button onclick="closeLegalModal()" class="text-white hover:text-gray-200 transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="p-6 overflow-y-auto" style="max-height: calc(90vh - 140px);">
+                    <iframe id="modalIframe" 
+                            class="w-full border-0" 
+                            style="min-height: 600px;"
+                            src="">
+                    </iframe>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="bg-gray-50 px-6 py-4 flex justify-end gap-4">
+                    <button onclick="closeLegalModal()" 
+                            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition">
+                        Close
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<style>
-    input[type="text"], input[type="password"] {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.5rem;
-        font-size: 1rem;
+<script>
+    let currentStep = 1;
+    const totalSteps = 4;
+    
+    function showStep(step) {
+        // Hide all sections
+        document.querySelectorAll('.form-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // Show current section
+        document.querySelector(`[data-section="${step}"]`).classList.add('active');
+        
+        // Update step indicators
+        document.querySelectorAll('.step').forEach(stepEl => {
+            const stepNum = parseInt(stepEl.dataset.step);
+            if (stepNum < step) {
+                stepEl.classList.add('completed');
+                stepEl.classList.remove('active');
+            } else if (stepNum === step) {
+                stepEl.classList.add('active');
+                stepEl.classList.remove('completed');
+            } else {
+                stepEl.classList.remove('active', 'completed');
+            }
+        });
+        
+        // Update progress bar
+        const progress = (step / totalSteps) * 100;
+        document.getElementById('progressFill').style.width = `${progress}%`;
+        
+        // Update buttons
+        document.getElementById('prevBtn').style.display = step === 1 ? 'none' : 'block';
+        document.getElementById('nextBtn').style.display = step === totalSteps ? 'none' : 'block';
+        document.getElementById('submitBtn').style.display = step === totalSteps ? 'block' : 'none';
+        
+        // Populate review on last step
+        if (step === 4) {
+            populateReview();
+        }
     }
-    input[type="text"]:focus, input[type="password"]:focus {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    
+    function populateReview() {
+        const form = document.getElementById('registrationForm');
+        const reviewContent = document.getElementById('reviewContent');
+        
+        const data = {
+            'Account': {
+                'Username': form.username.value,
+                'Email': form.email.value,
+                'Name': `${form.first_name.value} ${form.last_name.value}`
+            },
+            'Personal': {
+                'Phone': form.phone_number.value,
+                'National ID': form.national_id.value,
+                'Location': `${form.city.value}, ${form.province.options[form.province.selectedIndex].text}`
+            },
+            'Professional': {
+                'Employment': form.employment_status.options[form.employment_status.selectedIndex].text,
+                'Experience': form.years_of_experience.options[form.years_of_experience.selectedIndex].text,
+                'Education': form.education_level.options[form.education_level.selectedIndex].text
+            }
+        };
+        
+        let html = '';
+        for (const [section, fields] of Object.entries(data)) {
+            html += `<div class="mb-3"><strong>${section}:</strong></div>`;
+            for (const [label, value] of Object.entries(fields)) {
+                if (value) {
+                    html += `<div class="ml-4">• ${label}: ${value}</div>`;
+                }
+            }
+        }
+        
+        reviewContent.innerHTML = html;
     }
-    .helptext {
-        display: block;
-        font-size: 0.75rem;
-        color: #6b7280;
-        margin-top: 0.25rem;
+
+    function openLegalModal(type) {
+        const modal = document.getElementById('legalModal');
+        const iframe = document.getElementById('modalIframe');
+        const title = document.getElementById('modalTitle');
+        
+        if (type === 'terms') {
+            iframe.src = "{% url 'terms_conditions' %}";
+            title.textContent = 'Terms and Conditions';
+        } else if (type === 'privacy') {
+            iframe.src = "{% url 'privacy_policy' %}";
+            title.textContent = 'Privacy Policy';
+        }
+        
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        return false; // Prevent default link behavior
     }
-</style>
+
+    function closeLegalModal() {
+        const modal = document.getElementById('legalModal');
+        const iframe = document.getElementById('modalIframe');
+        
+        modal.classList.add('hidden');
+        iframe.src = ''; // Clear iframe
+        document.body.style.overflow = 'auto'; // Restore scrolling
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('legalModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeLegalModal();
+        }
+    });
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLegalModal();
+        }
+    });
+    
+    document.getElementById('nextBtn').addEventListener('click', function() {
+        if (currentStep < totalSteps) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    });
+    
+    document.getElementById('prevBtn').addEventListener('click', function() {
+        if (currentStep > 1) {
+            currentStep--;
+            showStep(currentStep);
+        }
+    });
+    
+    // Initialize
+    showStep(1);
+</script>
 {% endblock %}

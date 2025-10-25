@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from assessment.utils import create_test_attempts_bulk
 from django.contrib.auth.models import User
+from .forms import CandidateRegistrationForm
 import json
 
 from .models import Test, TestAttempt, Question, Answer
@@ -22,16 +23,22 @@ def home(request):
 
 
 def register(request):
-    """User registration"""
+    """Enhanced candidate registration with comprehensive data collection"""
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CandidateRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(request, 'Registration successful! Welcome to MRI Training Platform.')
+            messages.success(
+                request, 
+                f'Welcome {user.get_full_name()}! Your account has been created successfully.'
+            )
             return redirect('dashboard')
+        else:
+            messages.error(request, 'Please correct the errors below.')
     else:
-        form = UserCreationForm()
+        form = CandidateRegistrationForm()
+    
     return render(request, 'assessment/register.html', {'form': form})
 
 
@@ -389,6 +396,12 @@ def submit_dicom_answer(request, attempt_id):
             'success': False,
             'error': 'Invalid answer format'
         }, status=400)
+
+def terms_conditions(request):
+    return render(request, 'assessment/terms_conditions.html')
+
+def privacy_policy(request):
+    return render(request, 'assessment/privacy_policy.html')
 
 #users = User.objects.filter(cohort_memberships__cohort=my_cohort)
 #attempts = create_test_attempts_bulk(test, users)

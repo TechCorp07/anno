@@ -1,0 +1,624 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Privacy Policy - MRI Training Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --peakpoint-green: #00FF66;
+        --peakpoint-dark: #0A1628;
+        --peakpoint-navy: #1A2947;
+    }
+    
+    .legal-document {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 3rem 2rem;
+    }
+    
+    .legal-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding-bottom: 2rem;
+        border-bottom: 3px solid var(--peakpoint-green);
+    }
+    
+    .legal-header h1 {
+        color: var(--peakpoint-navy);
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .last-updated {
+        color: #6b7280;
+        font-size: 0.875rem;
+        font-style: italic;
+    }
+    
+    .section {
+        margin-bottom: 3rem;
+    }
+    
+    .section h2 {
+        color: var(--peakpoint-navy);
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid rgba(0, 255, 102, 0.2);
+    }
+    
+    .section h3 {
+        color: var(--peakpoint-navy);
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 1.5rem 0 1rem;
+    }
+    
+    .section p {
+        color: #374151;
+        line-height: 1.8;
+        margin-bottom: 1rem;
+    }
+    
+    .section ul, .section ol {
+        margin: 1rem 0 1rem 2rem;
+        color: #374151;
+        line-height: 1.8;
+    }
+    
+    .section li {
+        margin-bottom: 0.5rem;
+    }
+    
+    .highlight-box {
+        background: rgba(0, 255, 102, 0.1);
+        border-left: 4px solid var(--peakpoint-green);
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        border-radius: 0.5rem;
+    }
+    
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+    }
+    
+    .data-table th,
+    .data-table td {
+        border: 1px solid #e5e7eb;
+        padding: 0.75rem;
+        text-align: left;
+    }
+    
+    .data-table th {
+        background: var(--peakpoint-navy);
+        color: white;
+        font-weight: 600;
+    }
+    
+    .data-table tr:nth-child(even) {
+        background: #f9fafb;
+    }
+    
+    .contact-info {
+        background: #f9fafb;
+        padding: 2rem;
+        border-radius: 0.75rem;
+        margin: 2rem 0;
+    }
+    
+    .contact-info h3 {
+        color: var(--peakpoint-navy);
+        margin-bottom: 1rem;
+    }
+    
+    .back-button {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        background: var(--peakpoint-green);
+        color: var(--peakpoint-dark);
+        text-decoration: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .back-button:hover {
+        box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="legal-document">
+    <div class="legal-header">
+        <h1>Privacy Policy</h1>
+        <p class="last-updated">Last Updated: January 2025</p>
+        <p style="color: #6b7280; margin-top: 1rem;">
+            Peakpoint Services MRI Training Platform
+        </p>
+    </div>
+
+    <div class="highlight-box">
+        <p style="margin: 0;"><strong>Your Privacy Matters:</strong> Peakpoint Services is committed to protecting your personal information. This Privacy Policy explains how we collect, use, store, and protect your data in compliance with Zimbabwe's Postal and Telecommunications Regulatory Authority (POTRAZ) Data Protection Act and GDPR principles.</p>
+    </div>
+
+    <!-- Section 1: Introduction -->
+    <div class="section">
+        <h2>1. Introduction</h2>
+        <p>
+            Peakpoint Services ("we", "us", "our") operates the MRI Training Platform ("Platform") to provide assessment 
+            and training services for MRI technician candidates in Zimbabwe. This Privacy Policy applies to all personal 
+            data we collect through the Platform.
+        </p>
+        <p><strong>Data Controller:</strong> Peakpoint Services, registered and operating in Zimbabwe.</p>
+        <p><strong>Legal Basis:</strong> We process your data in accordance with:</p>
+        <ul>
+            <li>Zimbabwe's Postal and Telecommunications Regulatory Authority (POTRAZ) Data Protection Act</li>
+            <li>General Data Protection Regulation (GDPR) principles</li>
+            <li>Consent provided during registration</li>
+            <li>Contractual necessity for service provision</li>
+            <li>Legitimate business interests</li>
+            <li>Legal obligations under Zimbabwe law</li>
+        </ul>
+    </div>
+
+    <!-- Section 2: Data We Collect -->
+    <div class="section">
+        <h2>2. Personal Data We Collect</h2>
+        
+        <h3>2.1 Information You Provide Directly</h3>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Data Category</th>
+                    <th>Specific Information</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Account Information</strong></td>
+                    <td>Username, password (encrypted), email address</td>
+                    <td>Account creation, authentication, communication</td>
+                </tr>
+                <tr>
+                    <td><strong>Personal Identification</strong></td>
+                    <td>Full name, date of birth, national ID number, gender</td>
+                    <td>Identity verification, candidate tracking, legal compliance</td>
+                </tr>
+                <tr>
+                    <td><strong>Contact Details</strong></td>
+                    <td>Phone number, physical address, city, province</td>
+                    <td>Communication, regional analytics, certificate delivery</td>
+                </tr>
+                <tr>
+                    <td><strong>Professional Information</strong></td>
+                    <td>Employment status, employer, years of experience, education level, institution, license number</td>
+                    <td>Candidate assessment, program eligibility, skills tracking</td>
+                </tr>
+                <tr>
+                    <td><strong>Demographic Data</strong></td>
+                    <td>Location, employment sector, education background</td>
+                    <td>Program development, regional planning, reporting</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>2.2 Information Collected Automatically</h3>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Data Category</th>
+                    <th>Specific Information</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Technical Data</strong></td>
+                    <td>IP address, browser type, device information, operating system</td>
+                    <td>Security, technical support, service optimization</td>
+                </tr>
+                <tr>
+                    <td><strong>Usage Data</strong></td>
+                    <td>Login times, pages visited, features used, time spent</td>
+                    <td>Platform improvement, user experience enhancement</td>
+                </tr>
+                <tr>
+                    <td><strong>Assessment Data</strong></td>
+                    <td>Test responses, scores, time taken per question, attempt history</td>
+                    <td>Performance evaluation, certification, analytics</td>
+                </tr>
+                <tr>
+                    <td><strong>Proctoring Data</strong></td>
+                    <td>Webcam images (periodic snapshots), screen captures, browser activity logs</td>
+                    <td>Test integrity, anti-cheating measures, quality assurance</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h3>2.3 Sensitive Personal Data</h3>
+        <p>We collect limited sensitive data only when necessary:</p>
+        <ul>
+            <li><strong>Medical/Health Data:</strong> Only if relevant to MRI safety protocols (processed with explicit consent)</li>
+            <li><strong>Biometric Data:</strong> Facial recognition during proctoring (stored temporarily, processed with consent)</li>
+        </ul>
+    </div>
+
+    <!-- Section 3: How We Use Data -->
+    <div class="section">
+        <h2>3. How We Use Your Personal Data</h2>
+        
+        <h3>3.1 Primary Purposes</h3>
+        <ul>
+            <li><strong>Service Provision:</strong> Account management, test administration, result delivery</li>
+            <li><strong>Authentication:</strong> Verify your identity and prevent unauthorized access</li>
+            <li><strong>Assessment:</strong> Evaluate your performance, provide feedback, issue certifications</li>
+            <li><strong>Communication:</strong> Send important updates, test schedules, results, and notifications</li>
+            <li><strong>Proctoring:</strong> Monitor test integrity and prevent cheating</li>
+            <li><strong>Plagiarism Detection:</strong> Compare responses to detect similarities</li>
+            <li><strong>Analytics:</strong> Generate performance reports, identify skill gaps, track progress</li>
+        </ul>
+        
+        <h3>3.2 Secondary Purposes</h3>
+        <ul>
+            <li><strong>Platform Improvement:</strong> Enhance user experience and features</li>
+            <li><strong>Research:</strong> Conduct anonymized studies on training effectiveness</li>
+            <li><strong>Compliance:</strong> Meet legal and regulatory obligations</li>
+            <li><strong>Security:</strong> Detect and prevent fraud, abuse, or security threats</li>
+            <li><strong>Business Operations:</strong> Internal record-keeping, quality assurance</li>
+        </ul>
+        
+        <h3>3.3 Legal Basis for Processing</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Processing Activity</th>
+                    <th>Legal Basis</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Account creation and management</td>
+                    <td>Contractual necessity, Consent</td>
+                </tr>
+                <tr>
+                    <td>Test administration and proctoring</td>
+                    <td>Consent, Contractual necessity</td>
+                </tr>
+                <tr>
+                    <td>Performance assessment</td>
+                    <td>Contractual necessity, Legitimate interest</td>
+                </tr>
+                <tr>
+                    <td>Communication (essential)</td>
+                    <td>Contractual necessity</td>
+                </tr>
+                <tr>
+                    <td>Marketing communications</td>
+                    <td>Consent (opt-in)</td>
+                </tr>
+                <tr>
+                    <td>Platform analytics</td>
+                    <td>Legitimate interest</td>
+                </tr>
+                <tr>
+                    <td>Legal compliance</td>
+                    <td>Legal obligation</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section 4: Data Sharing -->
+    <div class="section">
+        <h2>4. Data Sharing and Disclosure</h2>
+        
+        <h3>4.1 We Share Data With:</h3>
+        
+        <p><strong>Service Providers:</strong></p>
+        <ul>
+            <li>Cloud hosting providers (data storage and Platform infrastructure)</li>
+            <li>Email service providers (communications)</li>
+            <li>Payment processors (if applicable)</li>
+            <li>Analytics providers (usage statistics)</li>
+        </ul>
+        <p class="highlight-box" style="background: rgba(0, 255, 102, 0.05); padding: 1rem; margin: 1rem 0;">
+            <strong>Note:</strong> All service providers are contractually bound to protect your data and use it only for specified purposes.
+        </p>
+        
+        <p><strong>Authorized Third Parties:</strong></p>
+        <ul>
+            <li><strong>Employers/Sponsors:</strong> With your consent, we may share your results with authorized employers or training sponsors</li>
+            <li><strong>Regulatory Bodies:</strong> POTRAZ or other Zimbabwe authorities when legally required</li>
+            <li><strong>Professional Bodies:</strong> Relevant medical or radiography councils for certification purposes</li>
+        </ul>
+        
+        <h3>4.2 We Do NOT:</h3>
+        <ul>
+            <li>❌ Sell your personal data to third parties</li>
+            <li>❌ Share your data for marketing purposes without consent</li>
+            <li>❌ Transfer data outside Zimbabwe without adequate safeguards</li>
+            <li>❌ Use your data for purposes unrelated to the Platform</li>
+        </ul>
+        
+        <h3>4.3 Legal Disclosures</h3>
+        <p>We may disclose your data when required by law, including:</p>
+        <ul>
+            <li>Court orders or legal proceedings</li>
+            <li>POTRAZ investigations or regulatory inquiries</li>
+            <li>Law enforcement requests</li>
+            <li>Protection of our rights, property, or safety</li>
+            <li>Fraud prevention or security investigations</li>
+        </ul>
+    </div>
+
+    <!-- Section 5: Data Security -->
+    <div class="section">
+        <h2>5. Data Security Measures</h2>
+        
+        <h3>5.1 Technical Security</h3>
+        <ul>
+            <li><strong>Encryption:</strong> Data transmitted using TLS/SSL encryption (HTTPS)</li>
+            <li><strong>Password Protection:</strong> Passwords stored using strong cryptographic hashing</li>
+            <li><strong>Secure Hosting:</strong> Data stored on secure servers with firewall protection</li>
+            <li><strong>Access Controls:</strong> Role-based access with multi-factor authentication for administrators</li>
+            <li><strong>Regular Backups:</strong> Automated backups with encryption</li>
+            <li><strong>Vulnerability Testing:</strong> Regular security audits and penetration testing</li>
+        </ul>
+        
+        <h3>5.2 Organizational Security</h3>
+        <ul>
+            <li><strong>Data Access Policy:</strong> Only authorized personnel can access personal data</li>
+            <li><strong>Staff Training:</strong> Regular training on data protection and security</li>
+            <li><strong>Confidentiality Agreements:</strong> All staff sign confidentiality agreements</li>
+            <li><strong>Incident Response Plan:</strong> Procedures for handling data breaches</li>
+        </ul>
+        
+        <h3>5.3 Proctoring Data Security</h3>
+        <ul>
+            <li>Webcam images compressed and stored securely</li>
+            <li>Automatic deletion after 30 days (unless flagged for review)</li>
+            <li>Access restricted to authorized proctoring reviewers only</li>
+            <li>Images not used for any purpose other than test integrity</li>
+        </ul>
+    </div>
+
+    <!-- Section 6: Data Retention -->
+    <div class="section">
+        <h2>6. Data Retention</h2>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Data Type</th>
+                    <th>Retention Period</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Account Information</td>
+                    <td>Duration of account + 2 years</td>
+                    <td>Legal obligations, dispute resolution</td>
+                </tr>
+                <tr>
+                    <td>Test Results</td>
+                    <td>Permanently (anonymized after 5 years)</td>
+                    <td>Certification records, historical data</td>
+                </tr>
+                <tr>
+                    <td>Proctoring Images</td>
+                    <td>30 days (90 days if flagged)</td>
+                    <td>Test integrity verification</td>
+                </tr>
+                <tr>
+                    <td>Usage Logs</td>
+                    <td>12 months</td>
+                    <td>Security, technical support</td>
+                </tr>
+                <tr>
+                    <td>Communication Records</td>
+                    <td>3 years</td>
+                    <td>Legal compliance, audit trail</td>
+                </tr>
+                <tr>
+                    <td>Financial Records</td>
+                    <td>7 years</td>
+                    <td>Tax and accounting requirements</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <p>When data is no longer required, we securely delete or anonymize it. You may request earlier deletion, 
+        subject to legal retention requirements.</p>
+    </div>
+
+    <!-- Section 7: Your Rights -->
+    <div class="section">
+        <h2>7. Your Data Protection Rights</h2>
+        
+        <p>Under Zimbabwe's POTRAZ Data Protection Act and GDPR principles, you have the following rights:</p>
+        
+        <h3>7.1 Right of Access</h3>
+        <p>You can request a copy of your personal data we hold. We will provide this within 30 days of your request.</p>
+        
+        <h3>7.2 Right to Rectification</h3>
+        <p>You can request correction of inaccurate or incomplete data. Update your profile directly or contact us.</p>
+        
+        <h3>7.3 Right to Erasure ("Right to be Forgotten")</h3>
+        <p>You can request deletion of your data, except where:</p>
+        <ul>
+            <li>We need it to comply with legal obligations</li>
+            <li>It's required for certification records</li>
+            <li>There are active legal proceedings</li>
+            <li>It's necessary for fraud prevention</li>
+        </ul>
+        
+        <h3>7.4 Right to Restrict Processing</h3>
+        <p>You can request we limit how we use your data while we:</p>
+        <ul>
+            <li>Verify the accuracy of disputed data</li>
+            <li>Determine the legitimacy of processing</li>
+            <li>Assess a deletion request</li>
+        </ul>
+        
+        <h3>7.5 Right to Data Portability</h3>
+        <p>You can request your data in a structured, machine-readable format (e.g., CSV, JSON) for transfer to another service.</p>
+        
+        <h3>7.6 Right to Object</h3>
+        <p>You can object to processing based on legitimate interests or for marketing purposes.</p>
+        
+        <h3>7.7 Right to Withdraw Consent</h3>
+        <p>Where processing is based on consent, you can withdraw it at any time. This doesn't affect the lawfulness 
+        of processing before withdrawal.</p>
+        
+        <h3>7.8 Right to Lodge a Complaint</h3>
+        <p>You have the right to complain to:</p>
+        <ul>
+            <li><strong>Peakpoint Services DPO:</strong> dpo@peakpoint.africa</li>
+            <li><strong>POTRAZ:</strong> Postal and Telecommunications Regulatory Authority of Zimbabwe</li>
+        </ul>
+        
+        <div class="highlight-box">
+            <p><strong>How to Exercise Your Rights:</strong></p>
+            <p>Email: <a href="mailto:privacy@peakpoint.africa" style="color: var(--peakpoint-green);">privacy@peakpoint.africa</a></p>
+            <p>We will respond within 30 days. Identity verification may be required for security purposes.</p>
+        </div>
+    </div>
+
+    <!-- Section 8: Cookies -->
+    <div class="section">
+        <h2>8. Cookies and Tracking Technologies</h2>
+        
+        <h3>8.1 What We Use</h3>
+        <ul>
+            <li><strong>Essential Cookies:</strong> Required for Platform functionality (login sessions, security)</li>
+            <li><strong>Performance Cookies:</strong> Help us understand how you use the Platform</li>
+            <li><strong>Functional Cookies:</strong> Remember your preferences</li>
+        </ul>
+        
+        <h3>8.2 Your Control</h3>
+        <p>You can control cookies through your browser settings. Note that disabling essential cookies may affect 
+        Platform functionality.</p>
+        
+        <h3>8.3 Third-Party Cookies</h3>
+        <p>We may use third-party analytics tools (e.g., Google Analytics) that place cookies. These are governed 
+        by third-party privacy policies.</p>
+    </div>
+
+    <!-- Section 9: International Transfers -->
+    <div class="section">
+        <h2>9. International Data Transfers</h2>
+        
+        <p>Your data is primarily stored and processed in Zimbabwe. If we transfer data internationally, we ensure:</p>
+        <ul>
+            <li>Adequate safeguards are in place (e.g., Standard Contractual Clauses)</li>
+            <li>Destination countries have adequate data protection laws</li>
+            <li>Explicit consent is obtained when required</li>
+            <li>POTRAZ guidelines on cross-border transfers are followed</li>
+        </ul>
+    </div>
+
+    <!-- Section 10: Children's Privacy -->
+    <div class="section">
+        <h2>10. Children's Privacy</h2>
+        
+        <p>The Platform is intended for individuals 18 years and older. We do not knowingly collect data from children 
+        under 18. If we discover we have collected data from a minor, we will delete it immediately.</p>
+        
+        <p>If you believe a minor has provided us with personal data, please contact us at: 
+        <a href="mailto:privacy@peakpoint.africa" style="color: var(--peakpoint-green);">privacy@peakpoint.africa</a></p>
+    </div>
+
+    <!-- Section 11: Data Breach Notification -->
+    <div class="section">
+        <h2>11. Data Breach Notification</h2>
+        
+        <p>In the unlikely event of a data breach affecting your personal information, we will:</p>
+        <ol>
+            <li>Notify POTRAZ within 72 hours of discovery (as required by law)</li>
+            <li>Notify affected users without undue delay</li>
+            <li>Provide details of the breach, affected data, and remedial actions</li>
+            <li>Offer guidance on protective measures you can take</li>
+        </ol>
+    </div>
+
+    <!-- Section 12: Changes to Policy -->
+    <div class="section">
+        <h2>12. Changes to This Privacy Policy</h2>
+        
+        <p>We may update this Privacy Policy to reflect changes in:</p>
+        <ul>
+            <li>Our data practices</li>
+            <li>Platform features</li>
+            <li>Legal or regulatory requirements</li>
+            <li>Technology or security measures</li>
+        </ul>
+        
+        <p>We will notify you of significant changes by:</p>
+        <ul>
+            <li>Email to your registered address</li>
+            <li>Prominent notice on the Platform</li>
+            <li>In-app notification</li>
+        </ul>
+        
+        <p>The "Last Updated" date at the top reflects the most recent revision. Your continued use after changes 
+        constitutes acceptance.</p>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="contact-info">
+        <h2>13. Contact Us</h2>
+        
+        <h3>General Privacy Inquiries</h3>
+        <p><strong>Email:</strong> <a href="mailto:privacy@peakpoint.africa" style="color: var(--peakpoint-green);">privacy@peakpoint.africa</a></p>
+        <p><strong>Phone:</strong> +263 778 477 608</p>
+        <p><strong>Address:</strong> [Your Physical Address], Harare, Zimbabwe</p>
+        
+        <h3>Data Protection Officer (DPO)</h3>
+        <p><strong>Email:</strong> <a href="mailto:dpo@peakpoint.africa" style="color: var(--peakpoint-green);">dpo@peakpoint.africa</a></p>
+        <p>The DPO is responsible for overseeing data protection compliance and handling privacy-related requests.</p>
+        
+        <h3>Compliance Officer</h3>
+        <p><strong>Email:</strong> <a href="mailto:compliance@peakpoint.africa" style="color: var(--peakpoint-green);">compliance@peakpoint.africa</a></p>
+        
+        <h3>Business Hours</h3>
+        <p>Monday - Friday, 8:00 AM - 5:00 PM Central Africa Time (CAT)</p>
+        
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+            <h3>Regulatory Authority</h3>
+            <p><strong>POTRAZ (Postal and Telecommunications Regulatory Authority of Zimbabwe)</strong></p>
+            <p>Website: <a href="https://www.potraz.gov.zw" target="_blank" style="color: var(--peakpoint-green);">www.potraz.gov.zw</a></p>
+            <p>For complaints regarding data protection: <a href="mailto:info@potraz.gov.zw" style="color: var(--peakpoint-green);">info@potraz.gov.zw</a></p>
+        </div>
+    </div>
+
+    <div class="highlight-box">
+        <p style="margin: 0;">
+            <strong>Your Consent:</strong> By using the Platform, you acknowledge that you have read and understood 
+            this Privacy Policy and consent to the collection, use, and processing of your personal data as described herein.
+        </p>
+    </div>
+
+    <div style="text-align: center; margin-top: 3rem;">
+        <a href="{% url 'register' %}" class="back-button">← Back to Registration</a>
+    </div>
+
+    <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 0.875rem;">
+        <p>&copy; 2025 Peakpoint Services. All rights reserved.</p>
+        <p>
+            <a href="{% url 'terms_conditions' %}" style="color: var(--peakpoint-green); margin: 0 1rem;">Terms & Conditions</a>
+            <a href="{% url 'home' %}" style="color: var(--peakpoint-green); margin: 0 1rem;">Home</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

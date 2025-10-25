@@ -6,12 +6,208 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import RegexValidator
 from django.db.models import Avg, Count, Q
 from django.core.validators import MinValueValidator
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from datetime import timedelta
 import json
 import random
 
+
+class UserProfile(models.Model):
+    """
+    Extended user profile for MRI Technician candidates
+    Stores additional information beyond Django's default User model
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    
+    # Personal Information
+    phone_regex = RegexValidator(
+        regex=r'^\+?263?[0-9]{9,10}$', 
+        message="Phone number must be in format: '+263771234567' or '0771234567'"
+    )
+    phone_number = models.CharField(
+        validators=[phone_regex], 
+        max_length=15, 
+        help_text="Contact phone number"
+    )
+    date_of_birth = models.DateField(
+        help_text="Your date of birth"
+    )
+    national_id = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="National ID number (e.g., 63-123456A63)"
+    )
+    gender = models.CharField(
+        max_length=20,
+        choices=[
+            ('male', 'Male'),
+            ('female', 'Female')
+        ],
+        default='female'
+    )
+    
+    # Location Information
+    province = models.CharField(
+        max_length=50,
+        choices=[
+            ('harare', 'Harare'),
+            ('bulawayo', 'Bulawayo'),
+            ('manicaland', 'Manicaland'),
+            ('mashonaland_central', 'Mashonaland Central'),
+            ('mashonaland_east', 'Mashonaland East'),
+            ('mashonaland_west', 'Mashonaland West'),
+            ('masvingo', 'Masvingo'),
+            ('matabeleland_north', 'Matabeleland North'),
+            ('matabeleland_south', 'Matabeleland South'),
+            ('midlands', 'Midlands'),
+        ],
+        help_text="Your province"
+    )
+    city = models.CharField(
+        max_length=100,
+        help_text="Your city or town"
+    )
+    address = models.TextField(
+        blank=True,
+        help_text="Physical address (optional)"
+    )
+    
+    # Professional Information
+    employment_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('employed', 'Currently Employed'),
+            ('unemployed', 'Unemployed'),
+            ('student', 'Student'),
+            ('self_employed', 'Self-Employed')
+        ],
+        help_text="Current employment status"
+    )
+    current_employer = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Name of current employer/institution (optional)"
+    )
+    years_of_experience = models.CharField(
+        max_length=10,
+        choices=[
+            ('0', 'No Experience'),
+            ('1-2', '1-2 years'),
+            ('3-5', '3-5 years'),
+            ('5+', 'More than 5 years')
+        ],
+        default='0',
+        help_text="Years of medical imaging experience"
+    )
+    has_mri_experience = models.BooleanField(
+        default=False,
+        help_text="Do you have previous MRI experience?"
+    )
+    education_level = models.CharField(
+        max_length=50,
+        choices=[
+            ('diploma', 'Diploma in Radiography'),
+            ('degree', 'Degree in Radiography'),
+            ('masters', 'Masters in Medical Imaging'),
+            ('other', 'Other Medical Background')
+        ],
+        help_text="Highest level of education in medical imaging"
+    )
+    institution_attended = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Name of institution where you studied (optional)"
+    )
+    graduation_year = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Year of graduation (optional)"
+    )
+    
+    # Certifications & Licenses
+    radiography_license_number = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Radiography license/registration number (if applicable)"
+    )
+    license_expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="License expiry date (if applicable)"
+    )
+    
+    # Consents & Agreements
+    terms_accepted = models.BooleanField(
+        default=False,
+        help_text="Has accepted terms and conditions"
+    )
+    terms_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When terms were accepted"
+    )
+    data_processing_consent = models.BooleanField(
+        default=False,
+        help_text="Consent for data processing"
+    )
+    data_consent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When data consent was given"
+    )
+    
+    # Profile Management
+    profile_completed = models.BooleanField(
+        default=False,
+        help_text="Has the user completed their profile?"
+    )
+    profile_photo = models.ImageField(
+        upload_to='profile_photos/',
+        null=True,
+        blank=True,
+        help_text="Profile photograph (optional)"
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'User Profile'
+        verbose_name_plural = 'User Profiles'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.user.get_full_name() or self.user.username} - Profile"
+    
+    def get_full_address(self):
+        """Return formatted full address"""
+        parts = [self.address, self.city, self.province]
+        return ", ".join([p for p in parts if p])
+    
+    def is_profile_complete(self):
+        """Check if all required fields are filled"""
+        required_fields = [
+            self.phone_number,
+            self.date_of_birth,
+            self.national_id,
+            self.province,
+            self.city,
+            self.employment_status,
+            self.education_level,
+            self.terms_accepted,
+            self.data_processing_consent
+        ]
+        return all(required_fields)
+    
+    def save(self, *args, **kwargs):
+        """Override save to update profile_completed status"""
+        self.profile_completed = self.is_profile_complete()
+        super().save(*args, **kwargs)
 
 class TestCategory(models.Model):
     """
@@ -714,3 +910,17 @@ class PlagiarismFlag(models.Model):
     
     def __str__(self):
         return f"{self.attempt1.user.username} vs {self.attempt2.user.username} - {self.similarity_percentage}%"
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """Create UserProfile when User is created"""
+    if created:
+        #from .models import UserProfile
+        UserProfile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    """Save UserProfile when User is saved"""
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
+
