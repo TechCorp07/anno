@@ -3,104 +3,484 @@
 
 {% block title %}Dashboard - MRI Training Platform{% endblock %}
 
-{% block content %}
-<div class="max-w-7xl mx-auto">
-    <h1 class="text-4xl font-bold text-gray-800 mb-8">Welcome, {{ user.username }}!</h1>
+{% block extra_head %}
+<style>
+    :root {
+        --peakpoint-green: #00FF66;
+        --peakpoint-dark: #0A1628;
+        --peakpoint-navy: #1A2947;
+    }
     
-    <!-- Available Tests -->
-    <div class="mb-12">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Available Tests</h2>
+    body {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--peakpoint-navy) 0%, var(--peakpoint-dark) 100%);
+        padding: 3rem 2rem;
+        margin: -2rem -1rem 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .dashboard-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 60%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(0, 255, 102, 0.15) 0%, transparent 70%);
+    }
+    
+    .header-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 10;
+    }
+    
+    .welcome-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: white;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .welcome-subtitle {
+        font-size: 1.125rem;
+        color: var(--peakpoint-green);
+        font-weight: 500;
+    }
+    
+    .dashboard-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 1rem;
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .section-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--peakpoint-navy);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .section-icon {
+        font-size: 1.5rem;
+    }
+    
+    .view-all-link {
+        color: var(--peakpoint-green);
+        font-weight: 600;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .view-all-link:hover {
+        gap: 0.75rem;
+    }
+    
+    .tests-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    .test-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.75rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .test-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--peakpoint-green) 0%, #00CC52 100%);
+    }
+    
+    .test-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0, 255, 102, 0.2);
+        border-color: var(--peakpoint-green);
+    }
+    
+    .test-title {
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: var(--peakpoint-navy);
+        margin-bottom: 0.75rem;
+    }
+    
+    .test-description {
+        color: #6b7280;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+    }
+    
+    .test-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.9rem;
+        color: #6b7280;
+    }
+    
+    .meta-icon {
+        width: 20px;
+        height: 20px;
+        color: var(--peakpoint-green);
+    }
+    
+    .test-button {
+        display: block;
+        width: 100%;
+        padding: 0.875rem;
+        background: linear-gradient(135deg, var(--peakpoint-green) 0%, #00CC52 100%);
+        color: var(--peakpoint-dark);
+        text-align: center;
+        border-radius: 10px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .test-button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 8px 20px rgba(0, 255, 102, 0.4);
+    }
+    
+    .empty-state {
+        background: white;
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+        border: 2px dashed #e5e7eb;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .empty-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--peakpoint-navy);
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-description {
+        color: #6b7280;
+    }
+    
+    .attempts-section {
+        margin-bottom: 3rem;
+    }
+    
+    .attempts-table-wrapper {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .attempts-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .attempts-table thead {
+        background: var(--peakpoint-navy);
+    }
+    
+    .attempts-table th {
+        padding: 1rem 1.5rem;
+        text-align: left;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: white;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .attempts-table td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #f3f4f6;
+        color: #374151;
+    }
+    
+    .attempts-table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .attempts-table tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.875rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .status-completed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-in-progress {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .status-expired {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .score-badge {
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+    
+    .score-pass {
+        color: #10b981;
+    }
+    
+    .score-fail {
+        color: #ef4444;
+    }
+    
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--peakpoint-green);
+        color: var(--peakpoint-dark);
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .action-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0, 255, 102, 0.3);
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-header {
+            padding: 2rem 1rem;
+        }
+        
+        .welcome-title {
+            font-size: 1.75rem;
+        }
+        
+        .tests-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .attempts-table-wrapper {
+            overflow-x: auto;
+        }
+        
+        .attempts-table {
+            min-width: 600px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="header-content">
+        <h1 class="welcome-title">
+            <span>👋</span>
+            <span>Welcome back, {{ user.get_full_name|default:user.username }}!</span>
+        </h1>
+        <p class="welcome-subtitle">Ready to continue your MRI training journey?</p>
+    </div>
+</div>
+
+<div class="dashboard-content">
+    <!-- Available Tests Section -->
+    <section class="tests-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="section-icon">📝</span>
+                Available Tests
+            </h2>
+        </div>
         
         {% if available_tests %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="tests-grid">
             {% for test in available_tests %}
-            <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
-                <h3 class="text-xl font-bold text-gray-800 mb-2">{{ test.title }}</h3>
-                <p class="text-gray-600 mb-4">{{ test.description|truncatewords:20 }}</p>
+            <div class="test-card">
+                <h3 class="test-title">{{ test.title }}</h3>
+                <p class="test-description">{{ test.description|truncatewords:20 }}</p>
                 
-                <div class="space-y-2 mb-4 text-sm text-gray-600">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="test-meta">
+                    <div class="meta-item">
+                        <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                         </svg>
-                        <span>{{ test.get_total_questions }} questions</span>
+                        <span><strong>{{ test.get_total_questions }}</strong> questions</span>
                     </div>
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    
+                    <div class="meta-item">
+                        <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        <span>{{ test.time_limit_minutes }} minutes</span>
+                        <span><strong>{{ test.time_limit_minutes }}</strong> minutes</span>
                     </div>
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    
+                    <div class="meta-item">
+                        <svg class="meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        <span>Pass: {{ test.passing_score }}%</span>
+                        <span>Pass: <strong>{{ test.passing_score }}%</strong></span>
                     </div>
                 </div>
                 
-                <a href="{% url 'test_detail' test.id %}" 
-                   class="block w-full bg-blue-600 text-white text-center py-2 rounded hover:bg-blue-700 transition">
-                    View Details
+                <a href="{% url 'test_detail' test.id %}" class="test-button">
+                    Start Test →
                 </a>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-            <p class="text-yellow-700">No tests available at the moment. Please check back later.</p>
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3 class="empty-title">No Tests Available</h3>
+            <p class="empty-description">Please check back later or contact your administrator.</p>
         </div>
         {% endif %}
-    </div>
+    </section>
     
-    <!-- Past Attempts -->
+    <!-- Recent Test Attempts Section -->
     {% if past_attempts %}
-    <div>
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Recent Test Attempts</h2>
+    <section class="attempts-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="section-icon">📊</span>
+                Recent Test Attempts
+            </h2>
+            <a href="{% url 'user_analytics' %}" class="view-all-link">
+                View Analytics
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+        </div>
         
-        <div class="bg-white rounded-lg shadow overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+        <div class="attempts-table-wrapper">
+            <table class="attempts-table">
+                <thead>
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Test</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        <th>Test</th>
+                        <th>Date</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody>
                     {% for attempt in past_attempts %}
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {{ attempt.test.title }}
+                        <td>
+                            <strong>{{ attempt.test.title }}</strong>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ attempt.started_at|date:"M d, Y H:i" }}
+                        <td>
+                            {{ attempt.started_at|date:"M d, Y" }}<br/>
+                            <small style="color: #9ca3af;">{{ attempt.started_at|date:"g:i A" }}</small>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td>
                             {% if attempt.score %}
-                                <span class="{% if attempt.passed %}text-green-600{% else %}text-red-600{% endif %} font-semibold">
+                                <span class="score-badge {% if attempt.passed %}score-pass{% else %}score-fail{% endif %}">
                                     {{ attempt.score }}%
                                 </span>
                             {% else %}
-                                -
+                                <span style="color: #9ca3af;">-</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                {% if attempt.status == 'completed' %}bg-green-100 text-green-800
-                                {% elif attempt.status == 'in_progress' %}bg-blue-100 text-blue-800
-                                {% elif attempt.status == 'expired' %}bg-red-100 text-red-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ attempt.get_status_display }}
+                        <td>
+                            <span class="status-badge 
+                                {% if attempt.status == 'completed' %}status-completed
+                                {% elif attempt.status == 'in_progress' %}status-in-progress
+                                {% else %}status-expired{% endif %}">
+                                {% if attempt.status == 'completed' %}
+                                    ✓ Completed
+                                {% elif attempt.status == 'in_progress' %}
+                                    ⏳ In Progress
+                                {% else %}
+                                    ⏱ {{ attempt.get_status_display }}
+                                {% endif %}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td>
                             {% if attempt.status == 'completed' %}
-                                <a href="{% url 'test_result' attempt.id %}" class="text-blue-600 hover:text-blue-900">View Results</a>
+                                <a href="{% url 'test_result' attempt.id %}" class="action-button">
+                                    <span>View Results</span>
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </a>
                             {% elif attempt.status == 'in_progress' %}
-                                <a href="{% url 'take_test' attempt.id %}" class="text-blue-600 hover:text-blue-900">Continue</a>
+                                <a href="{% url 'take_test' attempt.id %}" class="action-button">
+                                    <span>Continue</span>
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </a>
+                            {% else %}
+                                <span style="color: #9ca3af; font-size: 0.875rem;">-</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -108,7 +488,7 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </section>
     {% endif %}
 </div>
 {% endblock %}

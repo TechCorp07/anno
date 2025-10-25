@@ -1,75 +1,467 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Home - MRI Training Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --peakpoint-green: #00FF66;
+        --peakpoint-dark: #0A1628;
+        --peakpoint-navy: #1A2947;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #0A1628 0%, #1A2947 100%);
+    }
+    
+    .hero-section {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 4rem 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(0, 255, 102, 0.1) 0%, transparent 50%);
+        animation: pulse 8s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+    }
+    
+    .hero-content {
+        position: relative;
+        z-index: 10;
+        max-width: 900px;
+    }
+    
+    .logo-container {
+        margin-bottom: 2rem;
+        animation: fadeInDown 1s ease-out;
+    }
+    
+    .logo-container img {
+        max-width: 350px;
+        height: auto;
+        filter: drop-shadow(0 0 30px rgba(0, 255, 102, 0.4));
+    }
+    
+    .hero-title {
+        font-size: 3.5rem;
+        font-weight: 800;
+        color: white;
+        margin-bottom: 1.5rem;
+        line-height: 1.2;
+        animation: fadeInUp 1s ease-out 0.2s both;
+        text-shadow: 0 0 40px rgba(0, 255, 102, 0.3);
+    }
+    
+    .hero-subtitle {
+        font-size: 1.5rem;
+        color: #e5e7eb;
+        margin-bottom: 3rem;
+        animation: fadeInUp 1s ease-out 0.4s both;
+    }
+    
+    .cta-buttons {
+        display: flex;
+        gap: 1.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        animation: fadeInUp 1s ease-out 0.6s both;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--peakpoint-green) 0%, #00CC52 100%);
+        color: var(--peakpoint-dark);
+        padding: 1rem 3rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        border-radius: 50px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(0, 255, 102, 0.3);
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 40px rgba(0, 255, 102, 0.5);
+    }
+    
+    .btn-secondary {
+        background: transparent;
+        color: white;
+        padding: 1rem 3rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        border: 3px solid var(--peakpoint-green);
+        border-radius: 50px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+        background: rgba(0, 255, 102, 0.1);
+        transform: translateY(-3px);
+    }
+    
+    .features-section {
+        padding: 5rem 2rem;
+        background: white;
+    }
+    
+    .section-title {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--peakpoint-navy);
+        margin-bottom: 1rem;
+    }
+    
+    .section-subtitle {
+        text-align: center;
+        font-size: 1.125rem;
+        color: #6b7280;
+        margin-bottom: 4rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .feature-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border-radius: 20px;
+        padding: 2.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--peakpoint-green) 0%, #00CC52 100%);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-10px);
+        border-color: var(--peakpoint-green);
+        box-shadow: 0 20px 50px rgba(0, 255, 102, 0.2);
+    }
+    
+    .feature-card:hover::before {
+        transform: scaleX(1);
+    }
+    
+    .feature-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    .feature-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--peakpoint-navy);
+        margin-bottom: 1rem;
+    }
+    
+    .feature-description {
+        color: #6b7280;
+        line-height: 1.8;
+    }
+    
+    .cta-section {
+        padding: 5rem 2rem;
+        background: linear-gradient(135deg, var(--peakpoint-navy) 0%, var(--peakpoint-dark) 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .cta-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(0, 255, 102, 0.15) 0%, transparent 70%);
+    }
+    
+    .cta-content {
+        max-width: 800px;
+        margin: 0 auto;
+        text-align: center;
+        position: relative;
+        z-index: 10;
+    }
+    
+    .cta-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    
+    .cta-description {
+        font-size: 1.25rem;
+        color: #e5e7eb;
+        margin-bottom: 2.5rem;
+    }
+    
+    .stats-section {
+        background: var(--peakpoint-navy);
+        padding: 3rem 2rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 1.5rem;
+    }
+    
+    .stat-number {
+        font-size: 3rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--peakpoint-green) 0%, #00CC52 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #e5e7eb;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 2.5rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.125rem;
+        }
+        
+        .cta-buttons {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .btn-primary, .btn-secondary {
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto text-center">
-    <!-- Hero Section -->
-    <div class="mb-16">
-        <h1 class="text-5xl font-bold text-gray-900 mb-4">
-            MRI Training Platform
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="hero-content">
+        <div class="logo-container">
+            <img src="{% static 'images/peakpoint-logo.png' %}" alt="Peakpoint Services" onerror="this.style.display='none'" />
+        </div>
+        
+        <h1 class="hero-title">
+            MRI Data Annotation<br/>Training Platform
         </h1>
-        <p class="text-xl text-gray-600 mb-8">
-            Zimbabwe Medical Annotation Training & Assessment System
+        
+        <p class="hero-subtitle">
+            Africa's Premier Medical Imaging Training & Assessment System
         </p>
-        <div class="space-x-4">
+        
+        <div class="cta-buttons">
             {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}" 
-                   class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition">
-                    Go to Dashboard
+                <a href="{% url 'dashboard' %}" class="btn-primary">
+                    <span>Go to Dashboard</span>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
                 </a>
             {% else %}
-                <a href="{% url 'register' %}" 
-                   class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition">
-                    Get Started
+                <a href="{% url 'register' %}" class="btn-primary">
+                    <span>Get Started</span>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
                 </a>
-                <a href="{% url 'login' %}" 
-                   class="inline-block bg-gray-200 text-gray-800 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-gray-300 transition">
-                    Login
+                <a href="{% url 'login' %}" class="btn-secondary">
+                    <span>Login</span>
                 </a>
             {% endif %}
         </div>
     </div>
+</section>
+
+<!-- Stats Section -->
+<section class="stats-section">
+    <div class="stats-grid">
+        <div class="stat-item">
+            <div class="stat-number">1000+</div>
+            <div class="stat-label">Practice Questions</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">4</div>
+            <div class="stat-label">Assessment Stages</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">100%</div>
+            <div class="stat-label">DICOM Compatible</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">24/7</div>
+            <div class="stat-label">Platform Access</div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section">
+    <h2 class="section-title">World-Class Training Platform</h2>
+    <p class="section-subtitle">
+        Everything you need to succeed in MRI data annotation and medical imaging
+    </p>
     
-    <!-- Features -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-        <div class="bg-white p-8 rounded-lg shadow-lg">
-            <div class="text-4xl mb-4">📚</div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Comprehensive Training</h3>
-            <p class="text-gray-600">
-                Structured curriculum covering MRI/CT scan anatomy fundamentals to advanced annotation techniques
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">📚</div>
+            <h3 class="feature-title">Comprehensive Training</h3>
+            <p class="feature-description">
+                Structured curriculum covering MRI/CT scan anatomy fundamentals to advanced annotation techniques with real medical imaging datasets
             </p>
         </div>
         
-        <div class="bg-white p-8 rounded-lg shadow-lg">
-            <div class="text-4xl mb-4">⏱️</div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Timed Assessments</h3>
-            <p class="text-gray-600">
-                Practice with real-world timed tests to build confidence and improve your annotation speed
+        <div class="feature-card">
+            <div class="feature-icon">⏱️</div>
+            <h3 class="feature-title">Timed Assessments</h3>
+            <p class="feature-description">
+                Practice with real-world timed tests to build confidence and improve your annotation speed with automatic proctoring
             </p>
         </div>
         
-        <div class="bg-white p-8 rounded-lg shadow-lg">
-            <div class="text-4xl mb-4">📊</div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">Track Progress</h3>
-            <p class="text-gray-600">
-                Monitor your performance with detailed analytics and personalized feedback
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3 class="feature-title">Track Progress</h3>
+            <p class="feature-description">
+                Monitor your performance with detailed analytics, percentile rankings, and personalized feedback on skill gaps
+            </p>
+        </div>
+        
+        <div class="feature-card">
+            <div class="feature-icon">🏥</div>
+            <h3 class="feature-title">DICOM Viewer</h3>
+            <p class="feature-description">
+                Interactive medical imaging viewer with pan, zoom, and window/level controls for realistic annotation practice
+            </p>
+        </div>
+        
+        <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3 class="feature-title">4-Stage Testing</h3>
+            <p class="feature-description">
+                Progressive assessment from cognitive ability through detail orientation, trainability, and final validation
+            </p>
+        </div>
+        
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3 class="feature-title">Secure & Fair</h3>
+            <p class="feature-description">
+                Automated proctoring with plagiarism detection ensures test integrity and fair evaluation for all candidates
             </p>
         </div>
     </div>
-    
-    <!-- Call to Action -->
-    <div class="bg-blue-50 rounded-lg p-12 border-2 border-blue-200">
-        <h2 class="text-3xl font-bold text-gray-900 mb-4">
-            Ready to Start Your Journey?
-        </h2>
-        <p class="text-lg text-gray-700 mb-6">
-            Join our platform and become a certified medical image annotator
+</section>
+
+<!-- Call to Action Section -->
+<section class="cta-section">
+    <div class="cta-content">
+        <h2 class="cta-title">Ready to Start Your Journey?</h2>
+        <p class="cta-description">
+            Join Africa's leading medical imaging training program and become a certified MRI data annotation technician
         </p>
-        {% if not user.is_authenticated %}
-        <a href="{% url 'register' %}" 
-           class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition">
-            Create Free Account
-        </a>
-        {% endif %}
+        <div class="cta-buttons">
+            {% if not user.is_authenticated %}
+                <a href="{% url 'register' %}" class="btn-primary">
+                    <span>Create Free Account</span>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </a>
+            {% endif %}
+        </div>
     </div>
-</div>
+</section>
 {% endblock %}

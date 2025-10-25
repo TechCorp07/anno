@@ -15,29 +15,148 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <style>
+        :root {
+            --peakpoint-green: #00FF66;
+            --peakpoint-dark: #0A1628;
+            --peakpoint-navy: #1A2947;
+        }
+        
         [x-cloak] { display: none !important; }
+        
+        body {
+            min-height: 100vh;
+        }
+        
+        /* Navigation Styles */
+        .nav-bar {
+            background: linear-gradient(135deg, var(--peakpoint-navy) 0%, var(--peakpoint-dark) 100%);
+            box-shadow: 0 4px 20px rgba(0, 255, 102, 0.1);
+        }
+        
+        .nav-link {
+            color: #e5e7eb;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+        
+        .nav-link:hover {
+            color: var(--peakpoint-green);
+            background: rgba(0, 255, 102, 0.1);
+        }
+        
+        .nav-button {
+            background: linear-gradient(135deg, var(--peakpoint-green) 0%, #00CC52 100%);
+            color: var(--peakpoint-dark);
+            padding: 0.625rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 255, 102, 0.4);
+        }
+        
+        .nav-logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.3s ease;
+        }
+        
+        .nav-logo:hover {
+            color: var(--peakpoint-green);
+        }
+        
+        .nav-user-name {
+            color: var(--peakpoint-green);
+            font-weight: 600;
+        }
+        
+        /* Message Styles */
+        .message-container {
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message-success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-left: 4px solid #10b981;
+            color: #065f46;
+        }
+        
+        .message-error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left: 4px solid #ef4444;
+            color: #991b1b;
+        }
+        
+        .message-info {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-left: 4px solid #3b82f6;
+            color: #1e40af;
+        }
+        
+        /* Footer Styles */
+        .footer {
+            background: linear-gradient(135deg, var(--peakpoint-dark) 0%, var(--peakpoint-navy) 100%);
+            color: #e5e7eb;
+            margin-top: 4rem;
+        }
+        
+        .footer a {
+            color: var(--peakpoint-green);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .footer a:hover {
+            color: #00CC52;
+        }
     </style>
+    
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50">
     <!-- Navigation -->
-    <nav class="bg-blue-600 text-white shadow-lg">
+    <nav class="nav-bar text-white shadow-lg">
         <div class="container mx-auto px-4 py-4">
             <div class="flex justify-between items-center">
                 <div>
-                    <a href="{% url 'home' %}" class="text-2xl font-bold hover:text-blue-200">
-                        🏥 MRI Training Platform
+                    <a href="{% url 'home' %}" class="nav-logo">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                        </svg>
+                        <span>MRI Training Platform</span>
                     </a>
                 </div>
-                <div class="space-x-4">
+                <div class="flex items-center space-x-6">
                     {% if user.is_authenticated %}
-                        <a href="{% url 'dashboard' %}" class="hover:text-blue-200">Dashboard</a>
-                        <span class="text-blue-200">|</span>
-                        <span>Welcome, {{ user.username }}</span>
-                        <a href="{% url 'logout' %}" class="bg-blue-700 px-4 py-2 rounded hover:bg-blue-800">Logout</a>
+                        <a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a>
+                        <a href="{% url 'user_analytics' %}" class="nav-link">Analytics</a>
+                        <span class="text-sm">
+                            Welcome, <span class="nav-user-name">{{ user.username }}</span>
+                        </span>
+                        <a href="{% url 'logout' %}" class="nav-button">Logout</a>
                     {% else %}
-                        <a href="{% url 'login' %}" class="hover:text-blue-200">Login</a>
-                        <a href="{% url 'register' %}" class="bg-blue-700 px-4 py-2 rounded hover:bg-blue-800">Register</a>
+                        <a href="{% url 'login' %}" class="nav-link">Login</a>
+                        <a href="{% url 'register' %}" class="nav-button">Register</a>
                     {% endif %}
                 </div>
             </div>
@@ -48,8 +167,23 @@
     {% if messages %}
     <div class="container mx-auto px-4 mt-4">
         {% for message in messages %}
-        <div class="{% if message.tags == 'error' %}bg-red-100 border-red-400 text-red-700{% elif message.tags == 'success' %}bg-green-100 border-green-400 text-green-700{% else %}bg-blue-100 border-blue-400 text-blue-700{% endif %} px-4 py-3 rounded border mb-4" role="alert">
-            <span class="block sm:inline">{{ message }}</span>
+        <div class="message-container {% if message.tags == 'error' %}message-error{% elif message.tags == 'success' %}message-success{% else %}message-info{% endif %} px-6 py-4 rounded-lg mb-4" role="alert">
+            <div class="flex items-center">
+                {% if message.tags == 'success' %}
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                {% elif message.tags == 'error' %}
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                {% else %}
+                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                {% endif %}
+                <span class="font-medium">{{ message }}</span>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -61,9 +195,17 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white mt-16 py-6">
-        <div class="container mx-auto px-4 text-center">
-            <p>&copy; 2025 MRI Training Platform - Zimbabwe Medical Annotation Training</p>
+    <footer class="footer py-8">
+        <div class="container mx-auto px-4">
+            <div class="text-center">
+                <p class="font-semibold mb-2">&copy; 2025 Peakpoint Services - MRI Training Platform</p>
+                <p class="text-sm mb-4">African Medical Annotation Training & Assessment System</p>
+                <div class="flex justify-center gap-6 text-sm">
+                    <a href="{% url 'terms_conditions' %}">Terms & Conditions</a>
+                    <a href="{% url 'privacy_policy' %}">Privacy Policy</a>
+                    <a href="{% url 'home' %}">Home</a>
+                </div>
+            </div>
         </div>
     </footer>
 
