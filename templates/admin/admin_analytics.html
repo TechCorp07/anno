@@ -3,142 +3,627 @@
 
 {% block extrastyle %}
 <style>
+    :root {
+        --peakpoint-green: #00FF66;
+        --peakpoint-dark: #0A1628;
+        --peakpoint-navy: #1A2947;
+    }
+    
+    .dashboard-wrapper {
+        padding: 20px;
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+    
+    /* Header */
+    .page-header {
+        background: linear-gradient(135deg, var(--peakpoint-navy) 0%, var(--peakpoint-dark) 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 20px rgba(0, 255, 102, 0.1);
+    }
+    
+    .page-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 2.2rem;
+    }
+    
+    .page-header p {
+        margin: 0;
+        opacity: 0.9;
+        color: var(--peakpoint-green);
+    }
+    
+    /* Action Buttons */
+    .action-bar {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+    
+    .action-btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .action-btn.primary {
+        background: linear-gradient(135deg, var(--peakpoint-green) 0%, #00CC52 100%);
+        color: var(--peakpoint-dark);
+    }
+    
+    .action-btn.primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 255, 102, 0.4);
+    }
+    
+    .action-btn.secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .action-btn.secondary:hover {
+        background: #5a6268;
+    }
+    
+    /* Stats Grid */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 20px;
-        margin: 20px 0;
+        margin-bottom: 30px;
     }
+    
     .stat-card {
         background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        text-align: center;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 4px solid;
+        transition: transform 0.2s;
     }
-    .stat-value {
-        font-size: 2.5em;
-        font-weight: bold;
-        margin: 10px 0;
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+    
+    .stat-card.blue { border-left-color: #2196F3; }
+    .stat-card.green { border-left-color: #4CAF50; }
+    .stat-card.orange { border-left-color: #FF9800; }
+    .stat-card.purple { border-left-color: #9C27B0; }
+    .stat-card.red { border-left-color: #f44336; }
+    
     .stat-label {
-        color: #666;
-        font-size: 0.9em;
+        font-size: 0.875rem;
+        color: #6b7280;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
     }
-    .section {
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .stat-card.blue .stat-value { color: #2196F3; }
+    .stat-card.green .stat-value { color: #4CAF50; }
+    .stat-card.orange .stat-value { color: #FF9800; }
+    .stat-card.purple .stat-value { color: #9C27B0; }
+    .stat-card.red .stat-value { color: #f44336; }
+    
+    /* Section Styling */
+    .analytics-section {
         background: white;
-        margin: 20px 0;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
-    .section h2 {
-        margin-top: 0;
-        color: #333;
-        border-bottom: 2px solid #417690;
-        padding-bottom: 10px;
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e5e7eb;
     }
-    table {
+    
+    .section-icon {
+        font-size: 1.8rem;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    /* Tables */
+    .data-table {
         width: 100%;
         border-collapse: collapse;
         margin-top: 15px;
     }
-    th {
-        background: #f5f5f5;
+    
+    .data-table thead {
+        background: #f9fafb;
+    }
+    
+    .data-table th {
         padding: 12px;
         text-align: left;
-        border-bottom: 2px solid #ddd;
         font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+        font-size: 0.875rem;
+        text-transform: uppercase;
     }
-    td {
-        padding: 10px 12px;
-        border-bottom: 1px solid #eee;
+    
+    .data-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e5e7eb;
     }
-    tr:hover {
-        background: #f9f9f9;
+    
+    .data-table tr:hover {
+        background: #f9fafb;
     }
-    .progress-bar {
-        height: 20px;
-        background: #e0e0e0;
-        border-radius: 10px;
-        overflow: hidden;
-        position: relative;
-    }
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #4CAF50, #45a049);
-        transition: width 0.3s ease;
-    }
+    
+    /* Badges */
     .badge {
         display: inline-block;
         padding: 4px 12px;
         border-radius: 12px;
-        font-size: 0.85em;
+        font-size: 0.75rem;
         font-weight: 600;
+        text-transform: uppercase;
     }
-    .badge-success { background: #d4edda; color: #155724; }
-    .badge-warning { background: #fff3cd; color: #856404; }
-    .badge-danger { background: #f8d7da; color: #721c24; }
-    .export-button {
-        display: inline-block;
-        padding: 10px 20px;
-        background: #417690;
-        color: white;
-        text-decoration: none;
-        border-radius: 5px;
-        margin: 10px 5px;
+    
+    .badge.success { background: #d1fae5; color: #065f46; }
+    .badge.danger { background: #fee2e2; color: #991b1b; }
+    .badge.warning { background: #fef3c7; color: #92400e; }
+    .badge.info { background: #dbeafe; color: #1e40af; }
+    
+    /* Score Display */
+    .score-display {
+        font-weight: 700;
+        font-size: 1.1rem;
     }
-    .export-button:hover {
-        background: #2e5569;
-        color: white;
+    
+    .score-display.excellent { color: #10b981; }
+    .score-display.good { color: #3b82f6; }
+    .score-display.average { color: #f59e0b; }
+    .score-display.poor { color: #ef4444; }
+    
+    /* Recommendations */
+    .recommendation-card {
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        border-left: 4px solid;
+    }
+    
+    .recommendation-card.high {
+        background: #fee2e2;
+        border-left-color: #ef4444;
+    }
+    
+    .recommendation-card.medium {
+        background: #fef3c7;
+        border-left-color: #f59e0b;
+    }
+    
+    .recommendation-card.low {
+        background: #dbeafe;
+        border-left-color: #3b82f6;
+    }
+    
+    .recommendation-title {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 1rem;
+    }
+    
+    .recommendation-detail {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+    
+    .recommendation-action {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    /* Progress Bars */
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .progress-fill.excellent { background: #10b981; }
+    .progress-fill.good { background: #3b82f6; }
+    .progress-fill.average { background: #f59e0b; }
+    .progress-fill.poor { background: #ef4444; }
+    
+    /* Grid Layouts */
+    .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    
+    .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #9ca3af;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 768px) {
+        .grid-2, .grid-3 { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: 1fr; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="content" style="padding: 20px;">
-    <h1>📊 Admin Analytics Dashboard</h1>
-    <p style="color: #666; margin-bottom: 20px;">Comprehensive overview of test performance and user analytics</p>
+<div class="dashboard-wrapper">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>📊 Advanced Analytics Dashboard</h1>
+        <p>Comprehensive insights for hiring, training, and testing decisions</p>
+    </div>
     
-    <!-- Export Buttons -->
-    <div style="margin-bottom: 20px;">
-        <a href="{% url 'export_analytics' %}" class="export-button">📥 Export to Excel</a>
-        <a href="{% url 'admin:assessment_testattempt_changelist' %}" class="export-button" style="background: #666;">← Back to Test Attempts</a>
+    <!-- Action Bar -->
+    <div class="action-bar">
+        <a href="{% url 'export_analytics' %}" class="action-btn primary">
+            📥 Export Full Report
+        </a>
+        <a href="{% url 'admin:assessment_testattempt_changelist' %}" class="action-btn secondary">
+            📋 View All Attempts
+        </a>
+        <a href="{% url 'admin_dashboard_main' %}" class="action-btn secondary">
+            ← Back to Dashboard
+        </a>
     </div>
-
-    <!-- Overview Statistics -->
+    
+    <!-- Overall Statistics -->
     <div class="stats-grid">
-        <div class="stat-card" style="border-left: 4px solid #2196F3;">
-            <div class="stat-label">Total Attempts</div>
-            <div class="stat-value" style="color: #2196F3;">{{ total_attempts }}</div>
+        <div class="stat-card blue">
+            <div class="stat-label">Total Test Attempts</div>
+            <div class="stat-value">{{ total_attempts }}</div>
         </div>
         
-        <div class="stat-card" style="border-left: 4px solid #4CAF50;">
+        <div class="stat-card green">
             <div class="stat-label">Total Users</div>
-            <div class="stat-value" style="color: #4CAF50;">{{ total_users }}</div>
+            <div class="stat-value">{{ total_users }}</div>
         </div>
         
-        <div class="stat-card" style="border-left: 4px solid #FF9800;">
+        <div class="stat-card orange">
             <div class="stat-label">Overall Pass Rate</div>
-            <div class="stat-value" style="color: #FF9800;">{{ pass_rate|floatformat:1 }}%</div>
+            <div class="stat-value">{{ pass_rate }}%</div>
+        </div>
+        
+        <div class="stat-card purple">
+            <div class="stat-label">Average Score</div>
+            <div class="stat-value">{{ avg_score }}%</div>
+        </div>
+        
+        <div class="stat-card red">
+            <div class="stat-label">Ready for Hiring</div>
+            <div class="stat-value">{{ certification_ready_count }}</div>
         </div>
     </div>
-
-    <!-- Category Performance -->
+    
+    <!-- Actionable Recommendations -->
+    {% if recommendations %}
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">🎯</span>
+            <h2 class="section-title">Actionable Recommendations</h2>
+        </div>
+        
+        {% for rec in recommendations %}
+        <div class="recommendation-card {{ rec.priority }}">
+            <div class="recommendation-title">
+                {% if rec.priority == 'high' %}🔴{% elif rec.priority == 'medium' %}🟡{% else %}🔵{% endif %}
+                {{ rec.title }}
+            </div>
+            <div class="recommendation-detail">{{ rec.detail }}</div>
+            <div class="recommendation-action">💡 Action: {{ rec.action }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- ===== HIRING INSIGHTS ===== -->
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">👨‍💼</span>
+            <h2 class="section-title">Hiring Insights - Top Performers</h2>
+        </div>
+        
+        {% if top_performers %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Candidate</th>
+                    <th>Cohort</th>
+                    <th>Tests Completed</th>
+                    <th>Average Score</th>
+                    <th>Latest Test</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for performer in top_performers %}
+                <tr>
+                    <td><strong>#{{ forloop.counter }}</strong></td>
+                    <td>
+                        <strong>{{ performer.user.get_full_name|default:performer.user.username }}</strong><br>
+                        <small style="color: #6b7280;">{{ performer.user.email }}</small>
+                    </td>
+                    <td>{{ performer.cohort }}</td>
+                    <td>{{ performer.tests_completed }}/4</td>
+                    <td>
+                        <span class="score-display excellent">{{ performer.avg_score|floatformat:1 }}%</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill excellent" style="width: {{ performer.avg_score }}%;"></div>
+                        </div>
+                    </td>
+                    <td>{{ performer.latest_test|date:"M d, Y" }}</td>
+                    <td>
+                        <span class="badge success">✓ Ready to Hire</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <p>No certification-ready candidates yet. Check back when more tests are completed.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Struggling Candidates -->
+    {% if struggling_candidates %}
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">⚠️</span>
+            <h2 class="section-title">Candidates Needing Additional Training</h2>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Cohort</th>
+                    <th>Tests Failed</th>
+                    <th>Average Score</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for candidate in struggling_candidates %}
+                <tr>
+                    <td>
+                        <strong>{{ candidate.user.get_full_name|default:candidate.user.username }}</strong><br>
+                        <small style="color: #6b7280;">{{ candidate.user.email }}</small>
+                    </td>
+                    <td>{{ candidate.cohort }}</td>
+                    <td>{{ candidate.failed_count }}/{{ candidate.total_attempts }}</td>
+                    <td>
+                        <span class="score-display poor">{{ candidate.avg_score|floatformat:1 }}%</span>
+                    </td>
+                    <td>
+                        <span class="badge warning">⚠ Needs Training</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Security Red Flags -->
+    {% if red_flags %}
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">🚨</span>
+            <h2 class="section-title">Security & Integrity Issues</h2>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Candidate</th>
+                    <th>Test</th>
+                    <th>Plagiarism Flag</th>
+                    <th>Proctoring Issues</th>
+                    <th>Date</th>
+                    <th>Action Required</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for flag in red_flags %}
+                <tr>
+                    <td>
+                        <strong>{{ flag.user.get_full_name|default:flag.user.username }}</strong>
+                    </td>
+                    <td>{{ flag.test }}</td>
+                    <td>
+                        {% if flag.plagiarism %}
+                        <span class="badge danger">🚫 Flagged</span>
+                        {% else %}
+                        <span class="badge success">✓ Clear</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if flag.proctoring_issues > 0 %}
+                        <span class="badge danger">{{ flag.proctoring_issues }} Issues</span>
+                        {% else %}
+                        <span class="badge success">✓ None</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ flag.date|date:"M d, Y" }}</td>
+                    <td>
+                        <span class="badge warning">⚠ Review Required</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- ===== TRAINING INSIGHTS ===== -->
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">📚</span>
+            <h2 class="section-title">Training Insights - Cohort Performance</h2>
+        </div>
+        
+        {% if cohort_performance %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Cohort Name</th>
+                    <th>Total Members</th>
+                    <th>Tests Completed</th>
+                    <th>Average Score</th>
+                    <th>Pass Rate</th>
+                    <th>Performance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cohort in cohort_performance %}
+                <tr>
+                    <td><strong>{{ cohort.name }}</strong></td>
+                    <td>{{ cohort.total_members }}</td>
+                    <td>{{ cohort.completed_tests }}</td>
+                    <td>
+                        <span class="score-display {% if cohort.avg_score >= 80 %}excellent{% elif cohort.avg_score >= 70 %}good{% elif cohort.avg_score >= 60 %}average{% else %}poor{% endif %}">
+                            {{ cohort.avg_score|floatformat:1 }}%
+                        </span>
+                    </td>
+                    <td>{{ cohort.pass_rate }}%</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill {% if cohort.avg_score >= 80 %}excellent{% elif cohort.avg_score >= 70 %}good{% elif cohort.avg_score >= 60 %}average{% else %}poor{% endif %}" 
+                                 style="width: {{ cohort.avg_score }}%;"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">👥</div>
+            <p>No cohort data available yet.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Weak Topics -->
+    {% if weak_topics %}
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">🎯</span>
+            <h2 class="section-title">Topics Needing Training Focus</h2>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Topic</th>
+                    <th>Success Rate</th>
+                    <th>Questions Asked</th>
+                    <th>Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for topic in weak_topics %}
+                <tr>
+                    <td><strong>{{ topic.topic }}</strong></td>
+                    <td>
+                        <span class="score-display poor">{{ topic.success_rate }}%</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill poor" style="width: {{ topic.success_rate }}%;"></div>
+                        </div>
+                    </td>
+                    <td>{{ topic.total_questions }}</td>
+                    <td>
+                        <span class="badge danger">🔴 High Priority</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Stage Performance -->
     {% if category_stats %}
-    <div class="section">
-        <h2>Performance by Category (Stages)</h2>
-        <table>
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">📊</span>
+            <h2 class="section-title">Performance by Stage</h2>
+        </div>
+        
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>Stage</th>
-                    <th>Category Name</th>
-                    <th>Total Attempts</th>
+                    <th>Category</th>
+                    <th>Attempts</th>
                     <th>Pass Rate</th>
-                    <th>Average Score</th>
-                    <th>Performance</th>
+                    <th>Avg Score</th>
+                    <th>Avg Time</th>
+                    <th>Passing Threshold</th>
                 </tr>
             </thead>
             <tbody>
@@ -147,145 +632,179 @@
                     <td><strong>Stage {{ cat.stage }}</strong></td>
                     <td>{{ cat.name }}</td>
                     <td>{{ cat.attempts }}</td>
+                    <td>{{ cat.pass_rate }}%</td>
                     <td>
-                        <span class="badge {% if cat.pass_rate >= 70 %}badge-success{% elif cat.pass_rate >= 50 %}badge-warning{% else %}badge-danger{% endif %}">
-                            {{ cat.pass_rate|floatformat:1 }}%
+                        <span class="score-display {% if cat.avg_score >= 80 %}excellent{% elif cat.avg_score >= 70 %}good{% elif cat.avg_score >= 60 %}average{% else %}poor{% endif %}">
+                            {{ cat.avg_score|floatformat:1 }}%
                         </span>
                     </td>
-                    <td>{{ cat.avg_score|floatformat:1 }}%</td>
-                    <td>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: {{ cat.avg_score }}%; {% if cat.avg_score >= 70 %}background: #4CAF50;{% elif cat.avg_score >= 50 %}background: #FF9800;{% else %}background: #f44336;{% endif %}"></div>
-                        </div>
-                    </td>
+                    <td>{{ cat.avg_time_minutes }} min</td>
+                    <td>{{ cat.passing_threshold }}%</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}
-    <div class="section">
-        <h2>Performance by Category</h2>
-        <p style="color: #666;">No completed tests yet.</p>
-    </div>
     {% endif %}
-
-    <!-- Hardest Questions -->
-    {% if hardest_questions %}
-    <div class="section">
-        <h2>🔥 Most Difficult Questions (20 Hardest)</h2>
-        <p style="color: #666; margin-bottom: 15px;">Questions with lowest success rates - consider reviewing or updating these</p>
-        <table>
+    
+    <!-- ===== TESTING IMPROVEMENTS ===== -->
+    <div class="grid-2">
+        <!-- Too Easy Questions -->
+        {% if too_easy_questions %}
+        <div class="analytics-section">
+            <div class="section-header">
+                <span class="section-icon">😊</span>
+                <h2 class="section-title">Questions Too Easy</h2>
+            </div>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Success Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in too_easy_questions %}
+                    <tr>
+                        <td>
+                            <small>ID: {{ q.question_id }}</small><br>
+                            {{ q.question_text }}
+                        </td>
+                        <td>
+                            <span class="badge warning">{{ q.success_rate }}%</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        <!-- Too Hard Questions -->
+        {% if too_hard_questions %}
+        <div class="analytics-section">
+            <div class="section-header">
+                <span class="section-icon">😰</span>
+                <h2 class="section-title">Questions Too Hard</h2>
+            </div>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Success Rate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in too_hard_questions %}
+                    <tr>
+                        <td>
+                            <small>ID: {{ q.question_id }}</small><br>
+                            {{ q.question_text }}
+                        </td>
+                        <td>
+                            <span class="badge danger">{{ q.success_rate }}%</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Proctoring Insights -->
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">🔒</span>
+            <h2 class="section-title">Proctoring & Security Insights</h2>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="stat-label">Total Events</div>
+                <div class="stat-value">{{ proctoring_stats.total_events }}</div>
+            </div>
+            
+            <div class="stat-card red">
+                <div class="stat-label">High Severity</div>
+                <div class="stat-value">{{ proctoring_stats.high_severity }}</div>
+            </div>
+            
+            <div class="stat-card orange">
+                <div class="stat-label">Medium Severity</div>
+                <div class="stat-value">{{ proctoring_stats.medium_severity }}</div>
+            </div>
+            
+            <div class="stat-card green">
+                <div class="stat-label">Low Severity</div>
+                <div class="stat-value">{{ proctoring_stats.low_severity }}</div>
+            </div>
+        </div>
+        
+        {% if proctoring_stats.common_issues %}
+        <h3 style="margin-top: 20px;">Most Common Issues:</h3>
+        <table class="data-table">
             <thead>
                 <tr>
-                    <th style="width: 50px;">#</th>
-                    <th>Question</th>
-                    <th style="width: 120px;">Difficulty Level</th>
-                    <th style="width: 120px;">Total Answers</th>
-                    <th style="width: 120px;">Success Rate</th>
+                    <th>Event Type</th>
+                    <th>Count</th>
                 </tr>
             </thead>
             <tbody>
-                {% for q in hardest_questions %}
+                {% for issue in proctoring_stats.common_issues %}
                 <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td>
-                        <a href="{% url 'admin:assessment_question_change' q.question__id %}" style="color: #417690; text-decoration: none;">
-                            {{ q.question__question_text|truncatewords:15 }}
-                        </a>
-                    </td>
-                    <td>
-                        {% if q.question__difficulty_level == 5 %}⭐⭐⭐⭐⭐
-                        {% elif q.question__difficulty_level == 4 %}⭐⭐⭐⭐
-                        {% elif q.question__difficulty_level == 3 %}⭐⭐⭐
-                        {% elif q.question__difficulty_level == 2 %}⭐⭐
-                        {% else %}⭐{% endif %}
-                    </td>
-                    <td>{{ q.total_answers }}</td>
-                    <td>
-                        <span class="badge {% if q.success_rate >= 60 %}badge-success{% elif q.success_rate >= 40 %}badge-warning{% else %}badge-danger{% endif %}">
-                            {{ q.success_rate|floatformat:1 }}%
-                        </span>
-                    </td>
+                    <td>{{ issue.type }}</td>
+                    <td><strong>{{ issue.count }}</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% endif %}
     </div>
-    {% endif %}
-
-    <!-- Flagged Attempts for Plagiarism -->
-    {% if flagged_attempts %}
-    <div class="section">
-        <h2>🚨 Flagged Attempts (Plagiarism Detection)</h2>
-        <p style="color: #666; margin-bottom: 15px;">Test attempts flagged for potential plagiarism - requires manual review</p>
-        <table>
+    
+    <!-- Test Completion Time Analysis -->
+    {% if time_analysis %}
+    <div class="analytics-section">
+        <div class="section-header">
+            <span class="section-icon">⏱️</span>
+            <h2 class="section-title">Test Completion Time Analysis</h2>
+        </div>
+        
+        <table class="data-table">
             <thead>
                 <tr>
-                    <th>User</th>
                     <th>Test</th>
-                    <th>Completed At</th>
-                    <th>Score</th>
-                    <th>Similarity</th>
-                    <th>Actions</th>
+                    <th>Avg Time</th>
+                    <th>Min Time</th>
+                    <th>Max Time</th>
+                    <th>Time Limit</th>
+                    <th>Attempts</th>
                 </tr>
             </thead>
             <tbody>
-                {% for attempt in flagged_attempts %}
-                <tr style="background: #fff3cd;">
-                    <td>
-                        <a href="{% url 'admin:auth_user_change' attempt.user.id %}" style="color: #417690;">
-                            {{ attempt.user.username }}
-                        </a>
-                    </td>
-                    <td>{{ attempt.test.title }}</td>
-                    <td>{{ attempt.completed_at|date:"M d, Y H:i" }}</td>
-                    <td>{{ attempt.score|floatformat:1 }}%</td>
-                    <td>
-                        <span class="badge badge-danger">
-                            {% if attempt.similarity_score %}{{ attempt.similarity_score|floatformat:1 }}%{% else %}N/A{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        <a href="{% url 'admin:assessment_testattempt_change' attempt.id %}" style="color: #417690;">Review →</a>
-                    </td>
+                {% for test in time_analysis %}
+                <tr>
+                    <td><strong>{{ test.test }}</strong></td>
+                    <td>{{ test.avg_minutes }} min</td>
+                    <td>{{ test.min_minutes }} min</td>
+                    <td>{{ test.max_minutes }} min</td>
+                    <td>{{ test.time_limit }} min</td>
+                    <td>{{ test.attempts_count }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}
-    <div class="section">
-        <h2>🚨 Flagged Attempts</h2>
-        <p style="color: #4CAF50;">✓ No flagged attempts - all tests appear legitimate!</p>
-    </div>
     {% endif %}
-
-    <!-- Summary & Recommendations -->
-    <div class="section" style="background: #e3f2fd; border-left: 4px solid #2196F3;">
-        <h2>📋 Summary & Recommendations</h2>
-        <ul style="line-height: 2;">
-            <li><strong>Total Test Activity:</strong> {{ total_attempts }} attempts from {{ total_users }} users</li>
-            <li><strong>Overall Success:</strong> {{ pass_rate|floatformat:1 }}% pass rate across all categories</li>
-            {% if category_stats %}
-            <li><strong>Best Performing Stage:</strong> 
-                {% with best=category_stats|dictsort:"pass_rate"|last %}
-                    Stage {{ best.stage }} - {{ best.name }} ({{ best.pass_rate|floatformat:1 }}% pass rate)
-                {% endwith %}
-            </li>
-            <li><strong>Needs Improvement:</strong> 
-                {% with worst=category_stats|dictsort:"pass_rate"|first %}
-                    Stage {{ worst.stage }} - {{ worst.name }} ({{ worst.pass_rate|floatformat:1 }}% pass rate)
-                {% endwith %}
-            </li>
-            {% endif %}
-            {% if hardest_questions %}
-            <li><strong>Question Review:</strong> {{ hardest_questions|length }} questions have low success rates and may need review</li>
-            {% endif %}
-            {% if flagged_attempts %}
-            <li><strong>⚠️ Attention Required:</strong> {{ flagged_attempts|length }} attempts flagged for potential plagiarism</li>
-            {% endif %}
-        </ul>
-    </div>
+    
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// If you want to add trend charts, uncomment below
+ const trendData = {{ trend_data|safe }};
+// console.log('Trend data:', trendData);
+</script>
 {% endblock %}
