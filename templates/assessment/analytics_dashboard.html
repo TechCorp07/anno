@@ -1,0 +1,542 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Analytics - MRI Training Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    .analytics-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+    
+    .page-header {
+        margin-bottom: 40px;
+    }
+    
+    .page-header h1 {
+        font-size: 2.5rem;
+        color: #1f2937;
+        margin-bottom: 10px;
+    }
+    
+    .page-header p {
+        color: #6b7280;
+        font-size: 1.1rem;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-left: 4px solid;
+    }
+    
+    .stat-card.primary { border-left-color: #3b82f6; }
+    .stat-card.success { border-left-color: #10b981; }
+    .stat-card.warning { border-left-color: #f59e0b; }
+    .stat-card.info { border-left-color: #8b5cf6; }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .stat-card.primary .stat-value { color: #3b82f6; }
+    .stat-card.success .stat-value { color: #10b981; }
+    .stat-card.warning .stat-value { color: #f59e0b; }
+    .stat-card.info .stat-value { color: #8b5cf6; }
+    
+    /* Section Styling */
+    .analytics-section {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 30px;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .section-icon {
+        font-size: 1.8rem;
+    }
+    
+    /* Percentile Rankings */
+    .percentile-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .percentile-card {
+        background: linear-gradient(135deg, var(--peakpoint-navy, #1A2947) 0%, var(--peakpoint-dark, #0A1628) 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 255, 102, 0.1);
+    }
+    
+    .percentile-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(0, 255, 102, 0.15) 0%, transparent 70%);
+    }
+    
+    .percentile-category {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 10px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .percentile-value {
+        font-size: 3rem;
+        font-weight: 700;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .percentile-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Skill Gaps */
+    .skill-gap-item {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+    
+    .skill-gap-topic {
+        font-weight: 600;
+        color: #92400e;
+        margin-bottom: 8px;
+    }
+    
+    .skill-gap-score {
+        color: #b45309;
+        font-size: 0.875rem;
+    }
+    
+    .skill-gap-suggestion {
+        color: #78350f;
+        font-size: 0.875rem;
+        margin-top: 8px;
+        font-style: italic;
+    }
+    
+    /* TAO Rubric */
+    .tao-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .tao-stage {
+        text-align: center;
+        padding: 20px;
+        border-radius: 10px;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+    }
+    
+    .tao-stage.ready {
+        background: #d1fae5;
+        border-color: #10b981;
+    }
+    
+    .tao-stage.not-ready {
+        background: #fee2e2;
+        border-color: #ef4444;
+    }
+    
+    .tao-stage-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+    
+    .tao-stage.ready .tao-stage-number { color: #10b981; }
+    .tao-stage.not-ready .tao-stage-number { color: #ef4444; }
+    
+    .tao-stage-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 12px;
+    }
+    
+    .tao-stage-status {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .tao-stage.ready .tao-stage-status { color: #059669; }
+    .tao-stage.not-ready .tao-stage-status { color: #dc2626; }
+    
+    /* Test History Table */
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .history-table th {
+        background: #f9fafb;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .history-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .history-table tr:hover {
+        background: #f9fafb;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-badge.passed {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-badge.failed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .score-display {
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    
+    .score-display.pass { color: #10b981; }
+    .score-display.fail { color: #ef4444; }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6b7280;
+    }
+    
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+    }
+    
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, var(--peakpoint-green, #00FF66) 0%, #00CC52 100%);
+        color: var(--peakpoint-dark, #0A1628);
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .back-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 255, 102, 0.4);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .percentile-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .tao-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .page-header h1 {
+            font-size: 2rem;
+        }
+        
+        .analytics-section {
+            padding: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <div class="analytics-container">
+    <a href="{% url 'dashboard' %}" class="back-button">
+        ← Back to Dashboard
+    </a>
+    
+    <div class="page-header">
+        <h1>📊 My Performance Analytics</h1>
+        <p>Track your progress, identify skill gaps, and measure your readiness</p>
+    </div>
+    
+    <!-- Overview Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card primary">
+            <div class="stat-label">Total Tests Taken</div>
+            <div class="stat-value">{{ total_tests }}</div>
+        </div>
+        
+        <div class="stat-card success">
+            <div class="stat-label">Tests Passed</div>
+            <div class="stat-value">{{ passed_tests }}</div>
+        </div>
+        
+        <div class="stat-card warning">
+            <div class="stat-label">Average Score</div>
+            <div class="stat-value">{{ avg_score|floatformat:1 }}%</div>
+        </div>
+        
+        <div class="stat-card info">
+            <div class="stat-label">Pass Rate</div>
+            <div class="stat-value">
+                {% if total_tests > 0 %}
+                    {{ passed_tests|add:0|floatformat:0|divisibleby:total_tests|yesno:"100,"|default:"" }}
+                    {% widthratio passed_tests total_tests 100 %}%
+                {% else %}
+                    N/A
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Percentile Rankings -->
+    {% if category_percentiles %}
+    <div class="analytics-section">
+        <h2 class="section-title">
+            <span class="section-icon">📈</span>
+            Percentile Rankings by Category
+        </h2>
+        <p style="color: #6b7280; margin-bottom: 20px;">
+            Your performance compared to all other students in each category
+        </p>
+        
+        <div class="percentile-grid">
+            {% for category_name, percentile in category_percentiles.items %}
+                {% if percentile %}
+                <div class="percentile-card">
+                    <div class="percentile-category">{{ category_name }}</div>
+                    <div class="percentile-value">{{ percentile|floatformat:0 }}%</div>
+                    <div class="percentile-label">Percentile Ranking</div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Skill Gap Analysis -->
+    {% if skill_gaps %}
+    <div class="analytics-section">
+        <h2 class="section-title">
+            <span class="section-icon">🎯</span>
+            Skill Gap Analysis
+        </h2>
+        <p style="color: #6b7280; margin-bottom: 20px;">
+            Topics where you scored below 60% - focus areas for improvement
+        </p>
+        
+        {% for gap in skill_gaps %}
+        <div class="skill-gap-item">
+            <div class="skill-gap-topic">{{ gap.topic }}</div>
+            <div class="skill-gap-score">
+                Average Score: {{ gap.avg_score|floatformat:1 }}% 
+                ({{ gap.attempt_count }} attempt{{ gap.attempt_count|pluralize }})
+            </div>
+            <div class="skill-gap-suggestion">
+                💡 Recommendation: Practice {{ gap.questions_needed }} more questions on this topic
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="analytics-section">
+        <h2 class="section-title">
+            <span class="section-icon">🎯</span>
+            Skill Gap Analysis
+        </h2>
+        <div class="empty-state">
+            <div class="empty-state-icon">✅</div>
+            <p><strong>Great job!</strong> No significant skill gaps detected. You're performing well across all topics.</p>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- TAO Rubric Assessment -->
+    {% if tao_assessment %}
+    <div class="analytics-section">
+        <h2 class="section-title">
+            <span class="section-icon">🏆</span>
+            TAO Readiness Assessment
+        </h2>
+        <p style="color: #6b7280; margin-bottom: 20px;">
+            4-stage readiness evaluation based on category performance
+        </p>
+        
+        <div class="tao-grid">
+            {% for stage in tao_assessment %}
+            <div class="tao-stage {% if stage.ready %}ready{% else %}not-ready{% endif %}">
+                <div class="tao-stage-number">Stage {{ stage.stage_number }}</div>
+                <div class="tao-stage-label">{{ stage.category_name }}</div>
+                <div class="tao-stage-status">
+                    {% if stage.ready %}
+                        ✓ Ready
+                    {% else %}
+                        ✗ Not Ready
+                    {% endif %}
+                </div>
+                {% if stage.avg_score %}
+                <div style="margin-top: 10px; font-size: 0.875rem; color: #6b7280;">
+                    Avg: {{ stage.avg_score|floatformat:1 }}%
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div style="margin-top: 20px; padding: 16px; background: #eff6ff; border-radius: 8px; border-left: 4px solid #3b82f6;">
+            <strong style="color: #1e40af;">Overall Readiness:</strong>
+            <span style="color: #1e3a8a;">
+                {% if tao_assessment|length == 4 %}
+                    {% with ready_count=tao_assessment|length %}
+                    You are ready for {{ ready_count }} out of 4 stages
+                    {% endwith %}
+                {% else %}
+                    Complete more tests to get full assessment
+                {% endif %}
+            </span>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Test History -->
+    {% if attempts %}
+    <div class="analytics-section">
+        <h2 class="section-title">
+            <span class="section-icon">📝</span>
+            Test History
+        </h2>
+        
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Test Name</th>
+                    <th>Category</th>
+                    <th>Date Completed</th>
+                    <th>Score</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in attempts %}
+                <tr>
+                    <td>
+                        <strong>{{ attempt.test.title }}</strong>
+                    </td>
+                    <td>
+                        {{ attempt.test.category.name }}
+                    </td>
+                    <td>
+                        {{ attempt.completed_at|date:"M d, Y" }}<br>
+                        <small style="color: #9ca3af;">{{ attempt.completed_at|date:"g:i A" }}</small>
+                    </td>
+                    <td>
+                        {% if attempt.score is not None %}
+                        <span class="score-display {% if attempt.passed %}pass{% else %}fail{% endif %}">
+                            {{ attempt.score|floatformat:1 }}%
+                        </span>
+                        {% else %}
+                        <span style="color: #9ca3af;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if attempt.passed %}
+                        <span class="status-badge passed">Passed</span>
+                        {% else %}
+                        <span class="status-badge failed">Failed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="analytics-section">
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h3>No Test History Yet</h3>
+            <p>Complete your first test to see analytics and track your progress.</p>
+            <a href="{% url 'dashboard' %}" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+                Go to Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}
