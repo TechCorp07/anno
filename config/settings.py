@@ -116,7 +116,7 @@ SESSION_COOKIE_AGE = 7200  # 2 hours
 SESSION_SAVE_EVERY_REQUEST = True
 
 # Security Settings for Production
-SECURE_SSL_REDIRECT = True  # After SSL is configured
+#SECURE_SSL_REDIRECT = True  # After SSL is configured
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
