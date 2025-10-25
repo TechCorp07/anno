@@ -1,59 +1,508 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
 
-{% block content %}
-<div class="content" style="padding: 20px;">
-    <h1>Bulk Import Questions from Excel</h1>
+{% block extrastyle %}
+<style>
+    .import-container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 20px;
+    }
     
-    <div class="module" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6;">
-        <h2>Instructions</h2>
-        <ol>
-            <li><a href="{% url 'admin:question_download_template' %}" class="button">Download Excel Template</a></li>
-            <li>Fill in the template with your questions (one question per row)</li>
-            <li>Prepare images folder with files named: Q001.png, Q002.png, etc. (matching Question Number column)</li>
-            <li>Upload both the Excel file and image files below</li>
-        </ol>
-        
-        <h3>Excel Columns:</h3>
-        <ul style="list-style-type: disc; margin-left: 20px;">
-            <li><strong>Question Number</strong>: Unique number (used to match with image files)</li>
-            <li><strong>Topic Name</strong>: Must match existing topic name exactly</li>
-            <li><strong>Question Type</strong>: mcq, spatial, verbal, numerical, pattern, error_detection, image, dicom, annotation</li>
-            <li><strong>Question Text</strong>: The actual question</li>
-            <li><strong>Options A-D</strong>: Answer choices (for MCQ questions)</li>
-            <li><strong>Correct Answer</strong>: a, b, c, or d</li>
-            <li><strong>Explanation</strong>: Explanation of correct answer</li>
-            <li><strong>Difficulty</strong>: 1-5 (1=Easy, 5=Hard)</li>
-            <li><strong>Time Limit</strong>: Seconds allowed for this question</li>
-            <li><strong>Points</strong>: Points awarded for correct answer</li>
-        </ul>
+    .page-header {
+        margin-bottom: 30px;
+    }
+    
+    .page-header h1 {
+        font-size: 28px;
+        color: #1f2937;
+        margin-bottom: 8px;
+    }
+    
+    .page-header p {
+        color: #6b7280;
+        font-size: 16px;
+    }
+    
+    .stats-bar {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 30px;
+        padding: 16px;
+        background: #f3f4f6;
+        border-radius: 8px;
+    }
+    
+    .stat-item {
+        flex: 1;
+        text-align: center;
+        padding: 12px;
+        background: white;
+        border-radius: 6px;
+    }
+    
+    .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #3b82f6;
+    }
+    
+    .stat-label {
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+    
+    .method-selector {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .method-card {
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 24px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .method-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .method-card.active {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .method-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+    
+    .method-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 8px;
+    }
+    
+    .method-description {
+        color: #6b7280;
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+    
+    .method-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #10b981;
+        color: white;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .import-form {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-section {
+        margin-bottom: 24px;
+    }
+    
+    .form-section h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 16px;
+    }
+    
+    .upload-area {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 32px;
+        text-align: center;
+        background: #f9fafb;
+        transition: all 0.2s;
+    }
+    
+    .upload-area:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .upload-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+    
+    .upload-text {
+        font-size: 16px;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    
+    .upload-hint {
+        font-size: 14px;
+        color: #6b7280;
+    }
+    
+    .file-input {
+        margin-top: 16px;
+    }
+    
+    .instructions-panel {
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+    
+    .instructions-panel h3 {
+        color: #92400e;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .instructions-list {
+        list-style: decimal;
+        margin-left: 20px;
+        color: #78350f;
+    }
+    
+    .instructions-list li {
+        margin-bottom: 8px;
+    }
+    
+    .format-examples {
+        background: #f3f4f6;
+        border-radius: 6px;
+        padding: 16px;
+        margin-top: 12px;
+    }
+    
+    .format-examples h4 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+    
+    .format-examples code {
+        background: #1f2937;
+        color: #10b981;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 13px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        margin-top: 24px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    
+    .btn-success {
+        background: #10b981;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #059669;
+    }
+    
+    .help-box {
+        background: #dbeafe;
+        border-left: 4px solid #3b82f6;
+        padding: 16px;
+        border-radius: 4px;
+        margin-top: 16px;
+    }
+    
+    .help-box h4 {
+        color: #1e40af;
+        margin-bottom: 8px;
+        font-size: 15px;
+    }
+    
+    .help-box p {
+        color: #1e40af;
+        font-size: 14px;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <div class="page-header">
+        <h1>📤 Bulk Import Questions</h1>
+        <p>Import hundreds of questions with images in one operation</p>
     </div>
     
-    <form method="post" enctype="multipart/form-data">
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value">{{ total_questions|default:0 }}</div>
+            <div class="stat-label">Existing Questions</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ total_topics|default:0 }}</div>
+            <div class="stat-label">Active Topics</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">500</div>
+            <div class="stat-label">Max Per Import</div>
+        </div>
+    </div>
+    
+    <div class="instructions-panel">
+        <h3><span>💡</span> Quick Start Guide</h3>
+        <ol class="instructions-list">
+            <li><strong>Download</strong> the Excel template or sample ZIP file below</li>
+            <li><strong>Fill</strong> the Excel file with your questions</li>
+            <li><strong>Prepare</strong> images named Q001.png, Q002.png, etc. (matching Question Number column)</li>
+            <li><strong>Choose</strong> import method below: ZIP file (recommended) or separate files</li>
+            <li><strong>Upload</strong> and click Import - the system handles the rest!</li>
+        </ol>
+        
+        <div class="format-examples">
+            <h4>✅ Image Naming Examples (All Valid):</h4>
+            <p>
+                <code>Q001.png</code>
+                <code>Q002.jpg</code>
+                <code>001.png</code>
+                <code>question_1.png</code>
+                <code>q5.dcm</code> (for DICOM)
+            </p>
+        </div>
+    </div>
+    
+    <div class="method-selector">
+        <div class="method-card active" onclick="selectMethod('zip')" id="zip-method">
+            <div class="method-icon">📦</div>
+            <div class="method-title">ZIP File Upload</div>
+            <div class="method-description">
+                Upload everything in one ZIP file (Excel + all images)
+            </div>
+            <span class="method-badge">RECOMMENDED</span>
+        </div>
+        
+        <div class="method-card" onclick="selectMethod('standard')" id="standard-method">
+            <div class="method-icon">📁</div>
+            <div class="method-title">Separate Files</div>
+            <div class="method-description">
+                Upload Excel file and select multiple images separately
+            </div>
+        </div>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" class="import-form">
         {% csrf_token %}
         
-        <fieldset class="module aligned">
-            <div class="form-row">
-                <div>
-                    <label for="excel_file">Excel File (.xlsx):</label>
-                    <input type="file" name="excel_file" id="excel_file" accept=".xlsx" required>
-                    <p class="help">Upload your filled Excel template</p>
-                </div>
+        <!-- ZIP Upload Section -->
+        <div class="form-section" id="zip-upload-section">
+            <h3>Upload ZIP File</h3>
+            <div class="upload-area">
+                <div class="upload-icon">📦</div>
+                <div class="upload-text">Drop your ZIP file here or click to browse</div>
+                <div class="upload-hint">ZIP should contain Excel file + images folder</div>
+                <input 
+                    type="file" 
+                    name="zip_file" 
+                    id="zip_file" 
+                    accept=".zip" 
+                    class="file-input"
+                    onchange="updateFileName(this, 'zip-filename')"
+                >
             </div>
-            
-            <div class="form-row">
-                <div>
-                    <label for="image_folder">Question Images:</label>
-                    <input type="file" name="image_folder" id="image_folder" multiple accept="image/*">
-                    <p class="help">Select all image files (Q001.png, Q002.png, etc.)</p>
-                </div>
-            </div>
-        </fieldset>
+            <div id="zip-filename" style="margin-top: 12px; color: #10b981; font-weight: 600;"></div>
+        </div>
         
-        <div class="submit-row">
-            <input type="submit" value="Import Questions" class="default">
-            <a href="{% url 'admin:assessment_question_changelist' %}" class="button cancel-link">Cancel</a>
+        <!-- Standard Upload Section -->
+        <div class="form-section" id="standard-upload-section" style="display: none;">
+            <h3>Upload Excel File</h3>
+            <div class="upload-area">
+                <div class="upload-icon">📊</div>
+                <div class="upload-text">Select Excel template (.xlsx)</div>
+                <input 
+                    type="file" 
+                    name="excel_file" 
+                    id="excel_file" 
+                    accept=".xlsx" 
+                    class="file-input"
+                    onchange="updateFileName(this, 'excel-filename')"
+                >
+            </div>
+            <div id="excel-filename" style="margin-top: 12px; color: #10b981; font-weight: 600;"></div>
+            
+            <h3 style="margin-top: 24px;">Upload Images</h3>
+            <div class="upload-area">
+                <div class="upload-icon">🖼️</div>
+                <div class="upload-text">Select all image files</div>
+                <div class="upload-hint">Hold Ctrl/Cmd to select multiple files</div>
+                <input 
+                    type="file" 
+                    name="image_folder" 
+                    id="image_folder" 
+                    multiple 
+                    accept="image/*,.dcm" 
+                    class="file-input"
+                    onchange="updateImageCount(this)"
+                >
+            </div>
+            <div id="image-count" style="margin-top: 12px; color: #10b981; font-weight: 600;"></div>
+        </div>
+        
+        <div class="help-box">
+            <h4>📝 Important Notes</h4>
+            <p>
+                • Image Question Numbers must match the "Question Number" column in Excel<br>
+                • Topics must exist before import (create them first if needed)<br>
+                • Duplicate questions (same text + topic) will be updated, not re-created<br>
+                • Maximum 500 questions per import for optimal performance
+            </p>
+        </div>
+        
+        <div class="action-buttons">
+            <div>
+                <a href="{% url 'admin:question_download_template' %}" class="btn btn-secondary">
+                    <span>📥</span> Download Excel Template
+                </a>
+                <a href="{% url 'admin:question_download_sample_zip' %}" class="btn btn-success">
+                    <span>📦</span> Download Sample ZIP
+                </a>
+            </div>
+            <div>
+                <a href="{% url 'admin:assessment_question_changelist' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" id="submit-btn">
+                    <span>🚀</span> Import Questions
+                </button>
+            </div>
         </div>
     </form>
 </div>
+
+<script>
+function selectMethod(method) {
+    const zipCard = document.getElementById('zip-method');
+    const standardCard = document.getElementById('standard-method');
+    const zipSection = document.getElementById('zip-upload-section');
+    const standardSection = document.getElementById('standard-upload-section');
+    const zipInput = document.getElementById('zip_file');
+    const excelInput = document.getElementById('excel_file');
+    const imageInput = document.getElementById('image_folder');
+    
+    if (method === 'zip') {
+        zipCard.classList.add('active');
+        standardCard.classList.remove('active');
+        zipSection.style.display = 'block';
+        standardSection.style.display = 'none';
+        
+        // Clear standard inputs
+        excelInput.value = '';
+        imageInput.value = '';
+        
+        // Make zip required, others optional
+        zipInput.required = true;
+        excelInput.required = false;
+    } else {
+        zipCard.classList.remove('active');
+        standardCard.classList.add('active');
+        zipSection.style.display = 'none';
+        standardSection.style.display = 'block';
+        
+        // Clear zip input
+        zipInput.value = '';
+        
+        // Make excel required, zip optional
+        zipInput.required = false;
+        excelInput.required = true;
+    }
+}
+
+function updateFileName(input, elementId) {
+    const element = document.getElementById(elementId);
+    if (input.files.length > 0) {
+        const file = input.files[0];
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        element.textContent = `✅ ${file.name} (${sizeMB} MB)`;
+    } else {
+        element.textContent = '';
+    }
+}
+
+function updateImageCount(input) {
+    const element = document.getElementById('image-count');
+    if (input.files.length > 0) {
+        const count = input.files.length;
+        const totalSize = Array.from(input.files).reduce((sum, file) => sum + file.size, 0);
+        const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+        element.textContent = `✅ ${count} image(s) selected (${sizeMB} MB total)`;
+    } else {
+        element.textContent = '';
+    }
+}
+
+// Confirm before submit
+document.querySelector('form').addEventListener('submit', function(e) {
+    const zipFile = document.getElementById('zip_file').files[0];
+    const excelFile = document.getElementById('excel_file').files[0];
+    
+    if (!zipFile && !excelFile) {
+        e.preventDefault();
+        alert('Please select files to import.');
+        return;
+    }
+    
+    if (!confirm('Start import? This may take a few minutes for large batches.')) {
+        e.preventDefault();
+    }
+});
+</script>
 {% endblock %}

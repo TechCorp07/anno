@@ -2,16 +2,25 @@
 Enhanced Admin Configuration for Assessment App
 Includes bulk Excel import, cohort management, and analytics
 """
+
+from datetime import timezone
 from django.contrib import admin
 from django.shortcuts import render, redirect
 from django.urls import path, reverse
 from django.contrib import messages
 from django.db.models import Avg, Count, Q
 from django.utils.html import format_html
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from pathlib import Path
+from django.db import transaction
 from django.http import HttpResponse
 import openpyxl
 from io import BytesIO
 import json
+import zipfile
+import tempfile
+import re
 import os
 
 from .models import (
@@ -157,54 +166,177 @@ class QuestionAdmin(admin.ModelAdmin):
 
     def bulk_import_view(self, request):
         """Handle bulk Excel import with image folder"""
+        
         if request.method == 'POST':
             excel_file = request.FILES.get('excel_file')
             image_folder = request.FILES.getlist('image_folder')
+            zip_file = request.FILES.get('zip_file')
             
-            if not excel_file:
-                messages.error(request, 'Please upload an Excel file.')
+            if zip_file:
+                return self._process_zip_import(request, zip_file)
+            elif excel_file:
+                return self._process_standard_import(request, excel_file, image_folder)
+            else:
+                messages.error(request, 'Please upload either a ZIP file or an Excel file.')
                 return redirect('..')
+        
+        # GET request - show form with stats
+        context = {
+            'total_questions': Question.objects.count(),
+            'total_topics': QuestionTopic.objects.count(),
+            'opts': self.model._meta,
+            'has_view_permission': self.has_view_permission(request),
+        }
+        return render(request, 'admin/bulk_import_form.html', context)
+    
+    def _extract_question_number(self, filename):
+        """
+        Extract question number from various filename patterns:
+        - Q001.png -> 1
+        - question_1.png -> 1
+        - 001.jpg -> 1
+        - q1_image.png -> 1
+        """
+        patterns = [
+            r'[Qq](\d+)',      # Q001, q001
+            r'question_?(\d+)',  # question_1, question1
+            r'^(\d+)',          # 001.png (starts with number)
+            r'_(\d+)[\._]',     # any_1.png or any_1_
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, filename)
+            if match:
+                return int(match.group(1))
+        
+        return None
+
+
+    def _process_zip_import(self, request, zip_file):
+        """Process ZIP file containing Excel + images"""
+        import zipfile
+        import tempfile
+        
+        try:
+            # Create temporary directory
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_dir_path = Path(temp_dir)
+                
+                # Extract ZIP
+                with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir_path)
+                
+                # Find Excel file
+                excel_files = list(temp_dir_path.glob('*.xlsx')) + list(temp_dir_path.glob('*.xls'))
+                if not excel_files:
+                    messages.error(request, 'No Excel file found in ZIP archive.')
+                    return redirect('..')
+                
+                excel_path = excel_files[0]
+                
+                # Find image files
+                image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.dcm']
+                image_files = {}
+                
+                for ext in image_extensions:
+                    for img_path in temp_dir_path.rglob(f'*{ext}'):
+                        if not img_path.name.startswith('.'):  # Skip hidden files
+                            q_num = self._extract_question_number(img_path.name)
+                            if q_num:
+                                with open(img_path, 'rb') as f:
+                                    image_files[q_num] = (img_path.name, f.read())
+                
+                # Process with extracted files
+                return self._import_questions(
+                    request, 
+                    str(excel_path), 
+                    image_files,
+                    is_zip=True
+                )
+                
+        except zipfile.BadZipFile:
+            messages.error(request, 'Invalid ZIP file.')
+            return redirect('..')
+        except Exception as e:
+            messages.error(request, f'Error processing ZIP file: {str(e)}')
+            return redirect('..')
+
+
+    def _process_standard_import(self, request, excel_file, image_folder):
+        """Process standard upload: separate Excel + images"""
+        try:
+            # Process images into dictionary
+            images_dict = {}
+            for img_file in image_folder:
+                q_num = self._extract_question_number(img_file.name)
+                if q_num:
+                    images_dict[q_num] = (img_file.name, img_file.read())
+                else:
+                    messages.warning(
+                        request,
+                        f'Could not extract question number from filename: {img_file.name}. Use format Q001.png or 001.png'
+                    )
             
-            try:
-                # Process images into dictionary
-                images_dict = {}
-                for img_file in image_folder:
-                    # Extract question number from filename (e.g., "Q001.png" -> 1)
-                    try:
-                        q_num = int(''.join(filter(str.isdigit, img_file.name.split('.')[0])))
-                        images_dict[q_num] = img_file
-                    except ValueError:
-                        continue
-                
-                # Read Excel file
-                wb = openpyxl.load_workbook(excel_file)
-                sheet = wb.active
-                
-                created_count = 0
-                error_count = 0
-                errors = []
-                
+            return self._import_questions(request, excel_file, images_dict, is_zip=False)
+            
+        except Exception as e:
+            messages.error(request, f'Error processing files: {str(e)}')
+            return redirect('..')
+
+
+    def _import_questions(self, request, excel_source, images_dict, is_zip=False):
+        """Core import logic - works with both ZIP and standard uploads"""
+        from django.db import transaction
+        from django.core.files.base import ContentFile
+        
+        try:
+            # Read Excel file
+            if is_zip:
+                wb = openpyxl.load_workbook(excel_source)
+            else:
+                wb = openpyxl.load_workbook(excel_source)
+            
+            sheet = wb.active
+            
+            created_count = 0
+            updated_count = 0
+            skipped_count = 0
+            error_count = 0
+            errors = []
+            questions_with_images = 0
+            
+            # Use transaction for database integrity
+            with transaction.atomic():
                 # Skip header row
                 for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=False), start=2):
                     try:
-                        # Extract values (adjust column indices as needed)
+                        # Skip completely empty rows
+                        if all(cell.value is None for cell in row):
+                            continue
+                        
+                        # Extract values
                         question_number = int(row[0].value) if row[0].value else None
-                        topic_name = str(row[1].value) if row[1].value else None
-                        question_type = str(row[2].value).lower() if row[2].value else 'mcq'
-                        question_text = str(row[3].value) if row[3].value else None
-                        option_a = str(row[4].value) if row[4].value else ''
-                        option_b = str(row[5].value) if row[5].value else ''
-                        option_c = str(row[6].value) if row[6].value else ''
-                        option_d = str(row[7].value) if row[7].value else ''
-                        correct_answer = str(row[8].value).lower() if row[8].value else None
-                        explanation = str(row[9].value) if row[9].value else ''
+                        topic_name = str(row[1].value).strip() if row[1].value else None
+                        question_type = str(row[2].value).lower().strip() if row[2].value else 'mcq'
+                        question_text = str(row[3].value).strip() if row[3].value else None
+                        option_a = str(row[4].value).strip() if row[4].value else ''
+                        option_b = str(row[5].value).strip() if row[5].value else ''
+                        option_c = str(row[6].value).strip() if row[6].value else ''
+                        option_d = str(row[7].value).strip() if row[7].value else ''
+                        correct_answer = str(row[8].value).lower().strip() if row[8].value else None
+                        explanation = str(row[9].value).strip() if row[9].value else ''
                         difficulty = int(row[10].value) if row[10].value else 1
                         time_limit = int(row[11].value) if row[11].value else 60
                         points = int(row[12].value) if row[12].value else 1
                         
-                        # Validate required fields
-                        if not all([question_number, topic_name, question_text]):
-                            errors.append(f"Row {row_idx}: Missing required fields")
+                        # Validation
+                        if not question_text:
+                            errors.append(f'Row {row_idx}: Missing question text')
+                            error_count += 1
+                            continue
+                        
+                        if not topic_name:
+                            errors.append(f'Row {row_idx}: Missing topic name')
                             error_count += 1
                             continue
                         
@@ -212,56 +344,223 @@ class QuestionAdmin(admin.ModelAdmin):
                         try:
                             topic = QuestionTopic.objects.get(name=topic_name)
                         except QuestionTopic.DoesNotExist:
-                            errors.append(f"Row {row_idx}: Topic '{topic_name}' not found")
+                            errors.append(f'Row {row_idx}: Topic "{topic_name}" does not exist. Please create it first.')
                             error_count += 1
                             continue
                         
-                        # Create question
-                        question = Question.objects.create(
-                            topic=topic,
-                            question_type=question_type,
+                        # Validate question type
+                        valid_types = ['mcq', 'spatial', 'verbal', 'numerical', 'pattern', 
+                                    'error_detection', 'image', 'dicom', 'annotation']
+                        if question_type not in valid_types:
+                            errors.append(f'Row {row_idx}: Invalid question type "{question_type}"')
+                            error_count += 1
+                            continue
+                        
+                        # Validate MCQ fields
+                        if question_type == 'mcq':
+                            if not all([option_a, option_b, option_c, option_d]):
+                                errors.append(f'Row {row_idx}: MCQ questions require all 4 options')
+                                error_count += 1
+                                continue
+                            if correct_answer not in ['a', 'b', 'c', 'd']:
+                                errors.append(f'Row {row_idx}: Correct answer must be a, b, c, or d')
+                                error_count += 1
+                                continue
+                        
+                        # Create or update question
+                        question_data = {
+                            'topic': topic,
+                            'question_type': question_type,
+                            'question_text': question_text,
+                            'option_a': option_a,
+                            'option_b': option_b,
+                            'option_c': option_c,
+                            'option_d': option_d,
+                            'correct_answer': correct_answer,
+                            'explanation': explanation,
+                            'difficulty_level': min(max(difficulty, 1), 5),  # Clamp 1-5
+                            'time_limit_seconds': max(time_limit, 1),
+                            'points': max(points, 1),
+                            'is_active': True,
+                        }
+                        
+                        # Check if question already exists (by question_text to avoid duplicates)
+                        existing_question = Question.objects.filter(
                             question_text=question_text,
-                            option_a=option_a,
-                            option_b=option_b,
-                            option_c=option_c,
-                            option_d=option_d,
-                            correct_answer=correct_answer,
-                            explanation=explanation,
-                            difficulty_level=difficulty,
-                            time_limit_seconds=time_limit,
-                            points=points,
-                            is_active=True
-                        )
+                            topic=topic
+                        ).first()
+                        
+                        if existing_question:
+                            # Update existing question
+                            for key, value in question_data.items():
+                                setattr(existing_question, key, value)
+                            question = existing_question
+                            question.save()
+                            updated_count += 1
+                        else:
+                            # Create new question
+                            question = Question.objects.create(**question_data)
+                            created_count += 1
                         
                         # Attach image if available
-                        if question_number in images_dict:
-                            question.question_image = images_dict[question_number]
-                            question.save()
-                        
-                        created_count += 1
-                        
+                        if question_number and question_number in images_dict:
+                            filename, image_data = images_dict[question_number]
+                            
+                            # Determine if it's DICOM or regular image
+                            if filename.lower().endswith('.dcm'):
+                                question.dicom_file.save(
+                                    f'question_{question.id}_{filename}',
+                                    ContentFile(image_data),
+                                    save=True
+                                )
+                            else:
+                                question.question_image.save(
+                                    f'question_{question.id}_{filename}',
+                                    ContentFile(image_data),
+                                    save=True
+                                )
+                            
+                            questions_with_images += 1
+                    
                     except Exception as e:
-                        errors.append(f"Row {row_idx}: {str(e)}")
+                        errors.append(f'Row {row_idx}: {str(e)}')
                         error_count += 1
                         continue
-                
-                # Show results
-                if created_count > 0:
-                    messages.success(request, f'Successfully imported {created_count} questions.')
-                if error_count > 0:
-                    error_msg = f'{error_count} errors occurred:\n' + '\n'.join(errors[:10])
-                    if len(errors) > 10:
-                        error_msg += f'\n... and {len(errors) - 10} more errors.'
-                    messages.warning(request, error_msg)
-                
-                return redirect('..')
-                
-            except Exception as e:
-                messages.error(request, f'Error processing file: {str(e)}')
-                return redirect('..')
+            
+            # Display results
+            success_msg = f'Import completed! Created: {created_count}, Updated: {updated_count}'
+            if questions_with_images > 0:
+                success_msg += f', With Images: {questions_with_images}'
+            if skipped_count > 0:
+                success_msg += f', Skipped: {skipped_count}'
+            
+            messages.success(request, success_msg)
+            
+            if error_count > 0:
+                error_msg = f'{error_count} errors occurred:\n' + '\n'.join(errors[:20])
+                if len(errors) > 20:
+                    error_msg += f'\n... and {len(errors) - 20} more errors.'
+                messages.warning(request, error_msg)
+            
+            # Show warning for images without questions
+            unused_images = set(images_dict.keys()) - set(range(1, sheet.max_row))
+            if unused_images:
+                messages.info(
+                    request,
+                    f'{len(unused_images)} image(s) did not match any question numbers: {sorted(list(unused_images)[:10])}'
+                )
+            
+            return redirect('..')
+            
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+            import traceback
+            messages.error(request, traceback.format_exc())
+            return redirect('..')
+
+
+    # Also add this helper view for ZIP creation
+    def download_sample_zip_view(self, request):
+        """Generate and download sample ZIP with Excel + images"""
+        import zipfile
+        from io import BytesIO
+        import PIL.Image as PILImage
         
-        return render(request, 'admin/bulk_import_form.html')
-    
+        # Create in-memory ZIP
+        zip_buffer = BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Add Excel template
+            wb = openpyxl.Workbook()
+            sheet = wb.active
+            sheet.title = 'Questions'
+            
+            # Headers
+            headers = [
+                'Question Number', 'Topic Name', 'Question Type', 'Question Text',
+                'Option A', 'Option B', 'Option C', 'Option D', 
+                'Correct Answer (a/b/c/d)', 'Explanation', 
+                'Difficulty (1-5)', 'Time Limit (seconds)', 'Points'
+            ]
+            sheet.append(headers)
+            
+            # Sample questions
+            sheet.append([
+                1, 'Verbal Reasoning', 'mcq', 'What is the capital of Zimbabwe?',
+                'Harare', 'Bulawayo', 'Mutare', 'Gweru',
+                'a', 'Harare is the capital and largest city.',
+                1, 60, 1
+            ])
+            
+            sheet.append([
+                2, 'Spatial Reasoning', 'image', 'Identify the anatomical structure marked in red.',
+                'Liver', 'Kidney', 'Spleen', 'Pancreas',
+                'a', 'The red marker indicates the liver.',
+                2, 90, 2
+            ])
+            
+            # Style and save Excel to buffer
+            from openpyxl.styles import Font, PatternFill
+            for cell in sheet[1]:
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color='CCCCCC', end_color='CCCCCC', fill_type='solid')
+            
+            excel_buffer = BytesIO()
+            wb.save(excel_buffer)
+            excel_buffer.seek(0)
+            
+            zip_file.writestr('questions_template.xlsx', excel_buffer.getvalue())
+            
+            # Add sample images
+            for i in [1, 2]:
+                img = PILImage.new('RGB', (400, 300), color=(200, 200, 200))
+                img_buffer = BytesIO()
+                img.save(img_buffer, format='PNG')
+                img_buffer.seek(0)
+                zip_file.writestr(f'images/Q{i:03d}.png', img_buffer.getvalue())
+            
+            # Add README
+            readme = """BULK QUESTION IMPORT - README
+
+    FILES IN THIS ZIP:
+    - questions_template.xlsx: Fill this with your questions
+    - images/: Folder containing sample images
+
+    IMAGE NAMING:
+    Images should be named to match the Question Number in Excel:
+    - Q001.png matches Question Number 1
+    - Q002.png matches Question Number 2
+    - Or: 001.png, 002.png (without Q prefix)
+    - Or: question_1.png, question_2.png
+
+    SUPPORTED FORMATS:
+    - Images: .png, .jpg, .jpeg, .gif, .bmp
+    - DICOM: .dcm files
+
+    INSTRUCTIONS:
+    1. Fill the Excel template with your questions
+    2. Add your images to the images/ folder (or same directory as Excel)
+    3. Zip everything together
+    4. Upload the ZIP file via the bulk import page
+
+    That's it! The system will:
+    - Extract the ZIP
+    - Match images to questions by number
+    - Import everything in one go
+    """
+            zip_file.writestr('README.txt', readme)
+        
+        zip_buffer.seek(0)
+        
+        response = HttpResponse(
+            zip_buffer.getvalue(),
+            content_type='application/zip'
+        )
+        response['Content-Disposition'] = 'attachment; filename=question_import_sample.zip'
+        
+        return response
+
+
     def download_template_view(self, request):
         """Generate and download Excel template"""
         wb = openpyxl.Workbook()
