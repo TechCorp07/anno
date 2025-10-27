@@ -8,20 +8,15 @@ from django.contrib import admin
 from django.shortcuts import render, redirect
 from django.urls import path, reverse
 from django.contrib import messages
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg
 from django.utils.html import format_html
-from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from pathlib import Path
-from django.db import transaction
 from django.http import HttpResponse
 import openpyxl
 from io import BytesIO
 import json
-import zipfile
-import tempfile
 import re
-import os
 
 from .models import (
     TestCategory, QuestionTopic, Question, Test, TestAttempt, Answer, UserProfile,
@@ -836,8 +831,8 @@ class TestAdmin(admin.ModelAdmin):
     search_fields = ['title', 'description']
     filter_horizontal = ['manual_questions']
     list_editable = ['is_active']
-    change_form_template = 'admin/assessment/test/change_form.html'
-    add_form_template = 'admin/assessment/test/change_form.html'
+    #change_form_template = 'admin/assessment/test/change_form.html'
+    #add_form_template = 'admin/assessment/test/change_form.html'
     inlines = [TestTopicDistributionInline]
     
     def total_questions(self, obj):
