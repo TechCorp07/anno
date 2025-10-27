@@ -30,15 +30,21 @@ class UserProfile(models.Model):
     )
     phone_number = models.CharField(
         validators=[phone_regex], 
-        max_length=15, 
+        max_length=15,
+        null=True,
+        blank=True,
         help_text="Contact phone number"
     )
     date_of_birth = models.DateField(
+        null=True,
+        blank=True,
         help_text="Your date of birth"
     )
     national_id = models.CharField(
         max_length=20,
         unique=True,
+        null=True,
+        blank=True,
         help_text="National ID number (e.g., 63-123456A63)"
     )
     gender = models.CharField(
@@ -65,10 +71,14 @@ class UserProfile(models.Model):
             ('matabeleland_south', 'Matabeleland South'),
             ('midlands', 'Midlands'),
         ],
+        null=True,
+        blank=True,
         help_text="Your province"
     )
     city = models.CharField(
         max_length=100,
+        null=True,
+        blank=True,
         help_text="Your city or town"
     )
     address = models.TextField(
@@ -85,6 +95,8 @@ class UserProfile(models.Model):
             ('student', 'Student'),
             ('self_employed', 'Self-Employed')
         ],
+        null=True,
+        blank=True,
         help_text="Current employment status"
     )
     current_employer = models.CharField(
@@ -115,6 +127,8 @@ class UserProfile(models.Model):
             ('masters', 'Masters in Medical Imaging'),
             ('other', 'Other Medical Background')
         ],
+        null=True,
+        blank=True,
         help_text="Highest level of education in medical imaging"
     )
     institution_attended = models.CharField(
@@ -143,6 +157,8 @@ class UserProfile(models.Model):
     # Consents & Agreements
     terms_accepted = models.BooleanField(
         default=False,
+        null=True,
+        blank=True,
         help_text="Has accepted terms and conditions"
     )
     terms_accepted_at = models.DateTimeField(
@@ -917,10 +933,6 @@ def create_user_profile(sender, instance, created, **kwargs):
     if created:
         #from .models import UserProfile
         UserProfile.objects.create(user=instance)
+        #pass
 
-@receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    """Save UserProfile when User is saved"""
-    if hasattr(instance, 'profile'):
-        instance.profile.save()
 

@@ -12,7 +12,6 @@ from django.views.decorators.http import require_http_methods
 from assessment.utils import create_test_attempts_bulk
 from django.contrib.auth.models import User
 from .forms import CandidateRegistrationForm
-import json
 
 from .models import Test, TestAttempt, Question, Answer
 
