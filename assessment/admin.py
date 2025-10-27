@@ -397,9 +397,24 @@ class QuestionAdmin(admin.ModelAdmin):
                         
                         # Find or create topic
                         try:
-                            topic = QuestionTopic.objects.get(name=topic_name)
-                        except QuestionTopic.DoesNotExist:
-                            errors.append(f'Row {row_idx}: Topic "{topic_name}" does not exist. Please create it first.')
+                            default_category = TestCategory.objects.filter(is_active=True).first()
+                            
+                            if not default_category:
+                                errors.append(f'Row {row_idx}: No active TestCategory found.')
+                                error_count += 1
+                                continue
+                            
+                            topic, created = QuestionTopic.objects.get_or_create(
+                                name=topic_name,
+                                defaults={
+                                    'category': default_category,
+                                    'description': 'Auto-created during import',
+                                    'questions_per_test': 10
+                                }
+                            )
+                            
+                        except Exception as e:
+                            errors.append(f'Row {row_idx}: Error with topic: {str(e)}')
                             error_count += 1
                             continue
                         
