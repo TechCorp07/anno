@@ -177,8 +177,10 @@ class QuestionAdmin(admin.ModelAdmin):
                  name='question_bulk_import'),
             path('download-template/', self.admin_site.admin_view(self.download_template_view),
                  name='question_download_template'),
+            path('download-sample-zip/', self.admin_site.admin_view(self.download_sample_zip_view),
+                 name='question_download_sample_zip'),
             path('<int:question_id>/set-coordinates/', self.admin_site.admin_view(self.set_coordinates_view), 
-             name='question_set_coordinates'),
+                 name='question_set_coordinates'),
         ]
         return custom_urls + urls
     
