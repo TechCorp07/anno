@@ -831,8 +831,8 @@ class TestAdmin(admin.ModelAdmin):
     search_fields = ['title', 'description']
     filter_horizontal = ['manual_questions']
     list_editable = ['is_active']
-    #change_form_template = 'admin/assessment/test/change_form.html'
-    #add_form_template = 'admin/assessment/test/change_form.html'
+    change_form_template = 'admin/assessment/test/change_form.html'
+    add_form_template = 'admin/assessment/test/change_form.html'
     inlines = [TestTopicDistributionInline]
     
     def total_questions(self, obj):
