@@ -14,6 +14,8 @@ class ProctoringSystem {
         // Warning system
         this.warningCount = 0;
         this.maxWarnings = 3;
+        this.fullscreenExitCount = 0;
+        this.maxFullscreenExits = 3;
         
         // Fullscreen
         this.isFullscreen = false;
@@ -155,6 +157,68 @@ class ProctoringSystem {
     }
     
     /**
+     * Detect if developer tools are already open
+     * Uses timing and window size detection methods
+     */
+    async detectDevTools() {
+        console.log('🔍 Checking if developer tools are open...');
+        
+        let devToolsOpen = false;
+        
+        // Method 1: Check window dimensions (devtools takes up space)
+        const widthThreshold = window.outerWidth - window.innerWidth > 160;
+        const heightThreshold = window.outerHeight - window.innerHeight > 160;
+        
+        if (widthThreshold || heightThreshold) {
+            devToolsOpen = true;
+            console.warn('⚠️ Developer tools detected (Method 1: Window size)');
+        }
+        
+        // Method 2: debugger statement timing check
+        const startTime = performance.now();
+        // eslint-disable-next-line no-debugger
+        debugger;
+        const endTime = performance.now();
+        
+        // If debugger takes more than 100ms, devtools is likely open
+        if (endTime - startTime > 100) {
+            devToolsOpen = true;
+            console.warn('⚠️ Developer tools detected (Method 2: Debugger timing)');
+        }
+        
+        // Method 3: Firebug check
+        if (window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized) {
+            devToolsOpen = true;
+            console.warn('⚠️ Developer tools detected (Method 3: Firebug)');
+        }
+        
+        // Method 4: Console detection
+        let consoleOpen = false;
+        const element = new Image();
+        Object.defineProperty(element, 'id', {
+            get: function() {
+                consoleOpen = true;
+            }
+        });
+        console.log(element);
+        
+        if (consoleOpen) {
+            devToolsOpen = true;
+            console.warn('⚠️ Developer tools detected (Method 4: Console)');
+        }
+        
+        this.devToolsDetected = devToolsOpen;
+        
+        if (devToolsOpen) {
+            console.error('❌ DEVELOPER TOOLS ARE OPEN - Exam cannot start');
+        } else {
+            console.log('✅ No developer tools detected');
+        }
+        
+        return devToolsOpen;
+    }
+
+    /**
      * Test if upload endpoint is accessible
      */
     async testUploadEndpoint() {
@@ -206,7 +270,8 @@ class ProctoringSystem {
             html2canvas: false,
             screenshotTest: false,
             adBlocker: false,
-            uploadEndpoint: false
+            uploadEndpoint: false,
+            devTools: false
         };
         
         // Check 1: html2canvas loaded
@@ -223,6 +288,10 @@ class ProctoringSystem {
         
         // Check 4: Upload endpoint
         checks.uploadEndpoint = await this.testUploadEndpoint();
+
+        // Check 5: Developer tools detection
+        const devToolsOpen = await this.detectDevTools();
+        checks.devTools = !devToolsOpen;
         
         // Log results
         console.log('=== CHECK RESULTS ===');
@@ -230,6 +299,7 @@ class ProctoringSystem {
         console.log('Screenshot capability:', checks.screenshotTest ? '✅' : '❌');
         console.log('No ad blocker:', checks.adBlocker ? '✅' : '❌');
         console.log('Upload endpoint:', checks.uploadEndpoint ? '✅' : '❌');
+        console.log('No developer tools:', checks.devTools ? '✅' : '❌');
         
         // Log to backend
         await this.logEvent('system_check_completed', {
@@ -238,7 +308,8 @@ class ProctoringSystem {
             html2canvas_available: checks.html2canvas,
             screenshot_capable: checks.screenshotTest,
             ad_blocker_detected: !checks.adBlocker,
-            upload_endpoint_blocked: !checks.uploadEndpoint
+            upload_endpoint_blocked: !checks.uploadEndpoint,
+            dev_tools_detected: !checks.devTools
         });
         
         // Critical failures
@@ -252,6 +323,12 @@ class ProctoringSystem {
         }
         if (!checks.uploadEndpoint) {
             criticalFailures.push('Upload endpoint is blocked');
+        }
+        if (!checks.adBlocker) {
+            criticalFailures.push('Ad blocker detected - must be disabled for proctoring to work');
+        }
+        if (!checks.devTools) {
+            criticalFailures.push('Developer tools are open - must be closed to start exam');
         }
         
         // Show warnings for non-critical issues
@@ -348,7 +425,7 @@ class ProctoringSystem {
                     Proctoring System Error
                 </h2>
                 <p style="color: #374151; margin-bottom: 20px; line-height: 1.6; font-size: 16px;">
-                    <strong>Critical proctoring components are not working:</strong>
+                    <strong>The exam cannot start due to the following issues:</strong>
                 </p>
                 <div style="background: #fee2e2; padding: 15px; border-radius: 6px; text-align: left; margin-bottom: 20px;">
                     <ul style="list-style: none; padding: 0; margin: 0;">
@@ -362,10 +439,15 @@ class ProctoringSystem {
                 <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 6px;">
                     <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: bold;">
                         <strong>How to fix:</strong><br><br>
-                        1. Disable browser extensions (especially ad blockers)<br>
-                        2. Refresh the page<br>
-                        3. Try a different browser (Chrome recommended)<br>
-                        4. Check your internet connection
+                        ${failures.some(f => f.includes('Ad blocker')) ? 
+                            '• Disable all browser extensions (especially ad blockers)<br>' : ''}
+                        ${failures.some(f => f.includes('Developer tools')) ? 
+                            '• Close Developer Tools (F12) and all browser console windows<br>' : ''}
+                        ${failures.some(f => f.includes('Upload')) ? 
+                            '• Check your internet connection<br>' : ''}
+                        • Refresh the page after making changes<br>
+                        • Try using Chrome browser in incognito mode<br>
+                        • Ensure no security software is blocking the connection
                     </p>
                 </div>
                 <button onclick="location.reload()" style="
@@ -417,7 +499,7 @@ class ProctoringSystem {
         this.logEvent('system_check_failed', {
             severity: 'critical',
             failures: failures,
-            note: 'Exam cannot start - critical proctoring failure'
+            note: 'Exam BLOCKED - critical proctoring failures detected'
         });
     }
 
@@ -449,6 +531,9 @@ class ProctoringSystem {
             
             this.permissionsGranted = true;
             
+            //1.1 continuous devtools monitoring
+            this.startDevToolsMonitoring();
+
             // 2. Start continuous camera monitoring
             this.startCameraMonitoring();
             
@@ -555,6 +640,38 @@ class ProctoringSystem {
             
             return false;
         }
+    }
+
+    /**
+     * Continuous monitoring for developer tools being opened during exam
+     */
+    startDevToolsMonitoring() {
+        setInterval(async () => {
+            const devToolsNowOpen = await this.detectDevTools();
+            
+            if (devToolsNowOpen && !this.devToolsWarningShown) {
+                this.devToolsWarningShown = true;
+                
+                // Log critical event
+                await this.logEvent('devtools_opened_during_exam', {
+                    severity: 'critical',
+                    note: 'Developer tools opened DURING exam - potential cheating'
+                });
+                
+                // Capture screenshot
+                await this.captureEventScreenshot('devtools_violation', {
+                    severity: 'critical',
+                    note: 'DevTools opened during exam'
+                });
+                
+                // Show disqualification warning
+                alert('⚠️ CRITICAL VIOLATION: Developer Tools Detected\n\n' +
+                    'Developer tools have been detected during the exam.\n\n' +
+                    'THIS CONSTITUTES EXAM DISQUALIFICATION!\n\n' +
+                    'Close developer tools immediately and continue.\n\n' +
+                    'This incident has been logged and reported.');
+            }
+        }, 5000); // Check every 5 seconds
     }
     
     /**
@@ -886,18 +1003,40 @@ class ProctoringSystem {
         // Track fullscreen exits
         document.addEventListener('fullscreenchange', async () => {
             if (!document.fullscreenElement) {
-                console.log('🚨 Fullscreen exit detected - capturing screenshot');
+                this.fullscreenExitCount++;
+                
+                console.log(`🚨 Fullscreen exit detected (${this.fullscreenExitCount}/${this.maxFullscreenExits}) - capturing screenshot`);
                 
                 // Capture screenshot
                 await this.captureEventScreenshot('fullscreen_exit', {
-                    severity: 'warning',
+                    severity: this.fullscreenExitCount >= this.maxFullscreenExits ? 'critical' : 'warning',
+                    exit_count: this.fullscreenExitCount,
                     exit_timestamp: new Date().toISOString()
                 });
                 
                 // Log event
-                await this.logEvent('fullscreen_exit', { severity: 'warning' });
+                await this.logEvent('fullscreen_exit', { 
+                    severity: this.fullscreenExitCount >= this.maxFullscreenExits ? 'critical' : 'warning',
+                    exit_count: this.fullscreenExitCount,
+                    max_exits: this.maxFullscreenExits
+                });
                 
-                // Try to re-enter fullscreen
+                // Show disqualification warning
+                if (this.fullscreenExitCount >= this.maxFullscreenExits) {
+                    alert(`⚠️ CRITICAL WARNING: Fullscreen Exit #${this.fullscreenExitCount}\n\n` +
+                        `You have exited fullscreen mode ${this.fullscreenExitCount} times.\n\n` +
+                        `THIS CONSTITUTES EXAM DISQUALIFICATION!\n\n` +
+                        `This incident has been logged and your exam attempt may be invalidated.\n\n` +
+                        `The exam will now attempt to return to fullscreen mode.`);
+                } else {
+                    alert(`⚠️ WARNING: Fullscreen Exit #${this.fullscreenExitCount}/${this.maxFullscreenExits}\n\n` +
+                        `Exiting fullscreen mode is not allowed during the exam.\n\n` +
+                        `After ${this.maxFullscreenExits} exits, you will be DISQUALIFIED.\n\n` +
+                        `This incident has been logged.\n\n` +
+                        `The exam will now return to fullscreen mode.`);
+                }
+                
+                // Try to re-enter fullscreen after alert
                 setTimeout(() => this.enterFullscreen(), 100);
             }
         });
