@@ -99,12 +99,10 @@
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 12px;
-        font-weight: 600;
     }
     
     .search-box {
-        padding: 12px 16px;
-        background: white;
+        padding: 12px;
         border-bottom: 1px solid #e5e7eb;
     }
     
@@ -112,40 +110,36 @@
         width: 100%;
         padding: 8px 12px;
         border: 1px solid #d1d5db;
-        border-radius: 4px;
+        border-radius: 6px;
         font-size: 14px;
     }
     
     .user-list {
-        max-height: 500px;
+        max-height: 400px;
         overflow-y: auto;
-        padding: 8px;
     }
     
     .user-item {
         display: flex;
         align-items: center;
-        padding: 10px 12px;
-        margin-bottom: 4px;
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 4px;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e5e7eb;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: background-color 0.2s;
     }
     
     .user-item:hover {
-        background: #eff6ff;
-        border-color: #3b82f6;
+        background-color: #f3f4f6;
     }
     
     .user-item.selected {
-        background: #dbeafe;
-        border-color: #3b82f6;
+        background-color: #dbeafe;
     }
     
     .user-checkbox {
         margin-right: 12px;
+        width: 18px;
+        height: 18px;
         cursor: pointer;
     }
     
@@ -154,19 +148,31 @@
     }
     
     .user-name {
-        font-weight: 500;
+        font-weight: 600;
         color: #1f2937;
         margin-bottom: 2px;
     }
     
     .user-email {
+        font-size: 13px;
+        color: #6b7280;
+    }
+    
+    .member-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .member-date {
         font-size: 12px;
         color: #6b7280;
     }
     
     .selection-controls {
-        padding: 12px 16px;
-        background: white;
+        padding: 12px;
         border-top: 1px solid #e5e7eb;
         display: flex;
         gap: 8px;
@@ -174,37 +180,45 @@
     
     .control-btn {
         padding: 6px 12px;
-        font-size: 12px;
-        border: 1px solid #d1d5db;
-        background: white;
+        background: #3b82f6;
+        color: white;
+        border: none;
         border-radius: 4px;
+        font-size: 13px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: background-color 0.2s;
     }
     
     .control-btn:hover {
-        background: #f3f4f6;
+        background: #2563eb;
+    }
+    
+    .selected-count {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: #10b981;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
     }
     
     .action-buttons {
         display: flex;
+        justify-content: space-between;
         gap: 12px;
-        justify-content: flex-end;
-        margin-top: 24px;
-        padding-top: 24px;
-        border-top: 2px solid #e5e7eb;
     }
     
     .btn {
-        padding: 12px 24px;
+        padding: 10px 20px;
+        border: none;
         border-radius: 6px;
         font-weight: 600;
-        font-size: 14px;
         cursor: pointer;
-        border: none;
-        transition: all 0.2s;
         text-decoration: none;
         display: inline-block;
+        transition: all 0.2s;
     }
     
     .btn-primary {
@@ -212,7 +226,7 @@
         color: white;
     }
     
-    .btn-primary:hover {
+    .btn-primary:hover:not(:disabled) {
         background: #059669;
     }
     
@@ -229,51 +243,15 @@
     .btn-secondary:hover {
         background: #4b5563;
     }
-    
-    .selected-count {
-        background: #10b981;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .current-members-list {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    .member-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px;
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 4px;
-        margin-bottom: 8px;
-    }
-    
-    .member-date {
-        font-size: 12px;
-        color: #6b7280;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="bulk-add-container">
+    <h1>👥 Bulk Add Users to Cohort</h1>
+    
     <div class="section-card">
-        <div class="section-header">
-            <h1 class="section-title">
-                <span>👥</span>
-                Bulk Add Users to Cohort
-            </h1>
-        </div>
-        
+        <h2 class="section-title">Cohort Information</h2>
         <div class="cohort-info">
             <div class="info-item">
                 <span class="info-label">Cohort Name</span>
@@ -336,7 +314,6 @@
                                 name="users" 
                                 value="{{ user.id }}" 
                                 class="user-checkbox"
-                                onchange="updateSelectedCount()"
                             >
                             <div class="user-info">
                                 <div class="user-name">
@@ -355,9 +332,9 @@
                     </div>
                     
                     <div class="selection-controls">
-                        <button type="button" class="control-btn" onclick="selectAll()">Select All</button>
-                        <button type="button" class="control-btn" onclick="deselectAll()">Deselect All</button>
-                        <button type="button" class="control-btn" onclick="selectFiltered()">Select Filtered</button>
+                        <button type="button" class="control-btn" id="selectAllBtn">Select All</button>
+                        <button type="button" class="control-btn" id="deselectAllBtn">Deselect All</button>
+                        <button type="button" class="control-btn" id="selectFilteredBtn">Select Filtered</button>
                     </div>
                 </div>
                 
@@ -416,100 +393,142 @@
 </div>
 
 <script>
-function updateSelectedCount() {
-    const checkboxes = document.querySelectorAll('input[name="users"]:checked');
-    const count = checkboxes.length;
+// CRITICAL FIX: Wrap everything in DOMContentLoaded to ensure DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Bulk Add Users: Initializing...');
+    
+    // Get elements
+    const submitBtn = document.getElementById('submitBtn');
     const countElement = document.getElementById('selectedCount');
     const countText = document.getElementById('countText');
-    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('bulkAddForm');
     
-    if (count > 0) {
-        countElement.style.display = 'flex';
-        countText.textContent = count + ' user' + (count !== 1 ? 's' : '') + ' selected';
-        submitBtn.disabled = false;
-    } else {
-        countElement.style.display = 'none';
-        submitBtn.disabled = true;
+    // Verify elements exist
+    if (!submitBtn || !countElement || !countText || !form) {
+        console.error('Bulk Add Users: Required elements not found!');
+        return;
     }
-}
-
-function selectAll() {
-    document.querySelectorAll('input[name="users"]').forEach(cb => {
-        cb.checked = true;
-        cb.closest('.user-item').classList.add('selected');
-    });
-    updateSelectedCount();
-}
-
-function deselectAll() {
-    document.querySelectorAll('input[name="users"]').forEach(cb => {
-        cb.checked = false;
-        cb.closest('.user-item').classList.remove('selected');
-    });
-    updateSelectedCount();
-}
-
-function selectFiltered() {
-    document.querySelectorAll('#availableUsersList .user-item:not([style*="display: none"]) input[name="users"]').forEach(cb => {
-        cb.checked = true;
-        cb.closest('.user-item').classList.add('selected');
-    });
-    updateSelectedCount();
-}
-
-// Search functionality for available users
-document.getElementById('availableSearch').addEventListener('input', function(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const userItems = document.querySelectorAll('#availableUsersList .user-item');
     
-    userItems.forEach(item => {
-        const username = item.dataset.username || '';
-        const email = item.dataset.email || '';
-        const name = item.dataset.name || '';
-        
-        if (username.includes(searchTerm) || email.includes(searchTerm) || name.includes(searchTerm)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-});
-
-// Search functionality for current members
-document.getElementById('membersSearch').addEventListener('input', function(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const memberItems = document.querySelectorAll('#currentMembersList .member-item');
+    console.log('Bulk Add Users: Elements found, attaching event listeners...');
     
-    memberItems.forEach(item => {
-        const username = item.dataset.username || '';
-        const email = item.dataset.email || '';
-        const name = item.dataset.name || '';
+    // Function to update selected count
+    function updateSelectedCount() {
+        const checkboxes = document.querySelectorAll('input[name="users"]:checked');
+        const count = checkboxes.length;
         
-        if (username.includes(searchTerm) || email.includes(searchTerm) || name.includes(searchTerm)) {
-            item.style.display = 'flex';
+        console.log(`Bulk Add Users: ${count} users selected`);
+        
+        if (count > 0) {
+            countElement.style.display = 'flex';
+            countText.textContent = count + ' user' + (count !== 1 ? 's' : '') + ' selected';
+            submitBtn.disabled = false;
         } else {
-            item.style.display = 'none';
+            countElement.style.display = 'none';
+            submitBtn.disabled = true;
         }
-    });
-});
-
-// Toggle selection visual state
-document.querySelectorAll('.user-checkbox').forEach(checkbox => {
-    checkbox.addEventListener('change', function() {
-        if (this.checked) {
-            this.closest('.user-item').classList.add('selected');
-        } else {
-            this.closest('.user-item').classList.remove('selected');
-        }
-    });
-});
-
-// Confirm before submitting
-document.getElementById('bulkAddForm').addEventListener('submit', function(e) {
-    const count = document.querySelectorAll('input[name="users"]:checked').length;
-    if (!confirm(`Are you sure you want to add ${count} user(s) to this cohort?`)) {
-        e.preventDefault();
     }
+    
+    // Attach change event to all checkboxes
+    document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // Update visual state
+            if (this.checked) {
+                this.closest('.user-item').classList.add('selected');
+            } else {
+                this.closest('.user-item').classList.remove('selected');
+            }
+            // Update count
+            updateSelectedCount();
+        });
+    });
+    
+    console.log(`Bulk Add Users: Attached listeners to ${document.querySelectorAll('.user-checkbox').length} checkboxes`);
+    
+    // Select All button
+    document.getElementById('selectAllBtn').addEventListener('click', function() {
+        console.log('Bulk Add Users: Select All clicked');
+        document.querySelectorAll('input[name="users"]').forEach(cb => {
+            cb.checked = true;
+            cb.closest('.user-item').classList.add('selected');
+        });
+        updateSelectedCount();
+    });
+    
+    // Deselect All button
+    document.getElementById('deselectAllBtn').addEventListener('click', function() {
+        console.log('Bulk Add Users: Deselect All clicked');
+        document.querySelectorAll('input[name="users"]').forEach(cb => {
+            cb.checked = false;
+            cb.closest('.user-item').classList.remove('selected');
+        });
+        updateSelectedCount();
+    });
+    
+    // Select Filtered button
+    document.getElementById('selectFilteredBtn').addEventListener('click', function() {
+        console.log('Bulk Add Users: Select Filtered clicked');
+        document.querySelectorAll('#availableUsersList .user-item:not([style*="display: none"]) input[name="users"]').forEach(cb => {
+            cb.checked = true;
+            cb.closest('.user-item').classList.add('selected');
+        });
+        updateSelectedCount();
+    });
+    
+    // Search functionality for available users
+    document.getElementById('availableSearch').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const userItems = document.querySelectorAll('#availableUsersList .user-item');
+        
+        userItems.forEach(item => {
+            const username = item.dataset.username || '';
+            const email = item.dataset.email || '';
+            const name = item.dataset.name || '';
+            
+            if (username.includes(searchTerm) || email.includes(searchTerm) || name.includes(searchTerm)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+    
+    // Search functionality for current members
+    document.getElementById('membersSearch').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const memberItems = document.querySelectorAll('#currentMembersList .member-item');
+        
+        memberItems.forEach(item => {
+            const username = item.dataset.username || '';
+            const email = item.dataset.email || '';
+            const name = item.dataset.name || '';
+            
+            if (username.includes(searchTerm) || email.includes(searchTerm) || name.includes(searchTerm)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+    
+    // Confirm before submitting
+    form.addEventListener('submit', function(e) {
+        const count = document.querySelectorAll('input[name="users"]:checked').length;
+        
+        if (count === 0) {
+            e.preventDefault();
+            alert('Please select at least one user to add.');
+            return false;
+        }
+        
+        if (!confirm(`Are you sure you want to add ${count} user(s) to this cohort?`)) {
+            e.preventDefault();
+            return false;
+        }
+        
+        console.log(`Bulk Add Users: Submitting form with ${count} users`);
+    });
+    
+    console.log('Bulk Add Users: Initialization complete!');
 });
 </script>
 {% endblock %}

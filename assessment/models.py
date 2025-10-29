@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.validators import RegexValidator
-from django.db.models import Avg, Count, Q
+from django.db.models import Count, Q
 from django.core.validators import MinValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -678,7 +678,6 @@ class TestAttempt(models.Model):
     
     def get_skill_gaps(self):
         """Identify topics where user performed poorly"""
-        from django.db.models import Avg
         
         topic_performance = []
         for topic in self.test.category.topics.all():
@@ -797,46 +796,66 @@ class ProctoringEvent(models.Model):
         ('webcam', 'Webcam Snapshot'),
         ('screen', 'Screen Snapshot'),
         
+        # Event-triggered screenshots
+        ('event_tab_switch', 'Event: Tab Switch Screenshot'),
+        ('event_window_blur', 'Event: Window Blur Screenshot'),
+        ('event_fullscreen_exit', 'Event: Fullscreen Exit Screenshot'),
+        ('event_right_click_violation', 'Event: Right Click Violation Screenshot'),
+        ('event_devtools_violation', 'Event: DevTools Violation Screenshot'),
+        ('event_copy_paste_attempt', 'Event: Copy/Paste Attempt Screenshot'),
+        
         # Browser Events
-        ('tab_switch', 'Tab Switch Detected'),
+        ('tab_switched', 'Tab Switch Detected'),
+        ('tab_returned', 'Tab Returned'),
         ('fullscreen_exit', 'Fullscreen Exit'),
         ('window_blur', 'Window Lost Focus'),
+        ('window_focus_returned', 'Window Focus Returned'),
         
         # Security Events
-        ('copy_paste', 'Copy/Paste Attempt'),
-        ('right_click', 'Right Click Attempt'),
+        ('copy_paste_blocked', 'Copy/Paste Blocked'),
+        ('right_click_blocked', 'Right Click Blocked'),
         ('devtools_blocked', 'Developer Tools Blocked'),
         
-        # Camera Events (NEW)
+        # Camera Events
         ('camera_access_granted', 'Camera Access Granted'),
-        ('camera_disabled', 'Camera Disabled During Exam'),  # CRITICAL
+        ('camera_disabled', 'Camera Disabled During Exam'),
         ('camera_permission_denied', 'Camera Permission Denied'),
         
-        # System Events (NEW)
+        # System Events
         ('ip_logged', 'IP Address Logged'),
         ('proctoring_initialized', 'Proctoring System Initialized'),
         ('consent_accepted', 'Consent Form Accepted'),
+        
+        # Face verification
+        ('face_verification_passed', 'Face Verification Passed'),
+        ('face_verification_failed', 'Face Verification Failed'),
+        ('face_too_blurry', 'Face Image Too Blurry'),
+        ('no_face_detected', 'No Face Detected'),
+        
+        # Device blocking
+        ('mobile_device_blocked', 'Mobile Device Access Blocked'),
+        ('device_verification_passed', 'Device Verification Passed'),
     ]
     
     attempt = models.ForeignKey(TestAttempt, on_delete=models.CASCADE, related_name='proctoring_events')
-    event_type = models.CharField(max_length=30, choices=EVENT_TYPES)  # Increased from 20 to 30
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPES)  # Increased from 30 to 50
     
     # Snapshots
     image_file = models.ImageField(
         upload_to='proctoring/%Y/%m/%d/', 
         blank=True, 
         null=True,
-        help_text="Compressed snapshot image"
+        help_text="Compressed snapshot image or event screenshot"
     )
     
     # Event metadata
     metadata = models.JSONField(
         blank=True,
         null=True,
-        help_text="Additional event data (browser info, mouse position, IP, etc.)"
+        help_text="Event data including: warning_count, away_time_seconds, attempt_count, etc."
     )
     
-    # Severity level (NEW)
+    # Severity level
     severity = models.CharField(
         max_length=20,
         choices=[
@@ -850,17 +869,24 @@ class ProctoringEvent(models.Model):
     
     timestamp = models.DateTimeField(auto_now_add=True)
     
+    is_event_screenshot = models.BooleanField(
+        default=False,
+        help_text="True if this is an event-triggered screenshot (not periodic)"
+    )
+    
     class Meta:
-        ordering = ['timestamp']
+        ordering = ['-timestamp']  # Changed to descending for latest first
         indexes = [
             models.Index(fields=['attempt', 'event_type']),
             models.Index(fields=['timestamp']),
-            models.Index(fields=['severity']),  # NEW: For filtering critical events
+            models.Index(fields=['severity']),
+            models.Index(fields=['is_event_screenshot']),
         ]
     
     def __str__(self):
         severity_icon = '🚨' if self.severity == 'critical' else '⚠️' if self.severity == 'warning' else 'ℹ️'
-        return f"{severity_icon} {self.attempt.user.username} - {self.event_type} - {self.timestamp}"
+        event_marker = ' [EVENT]' if self.is_event_screenshot else ''
+        return f"{severity_icon} {self.attempt.user.username} - {self.event_type}{event_marker} - {self.timestamp}"
     
     @classmethod
     def cleanup_old_snapshots(cls, days=30):

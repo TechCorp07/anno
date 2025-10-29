@@ -147,3 +147,18 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Africa/Harare'
+
+# Face Verification Settings
+FACE_VERIFICATION_ENABLED = True
+MIN_FACE_CONFIDENCE = 0.85  # 85% confidence that face is detected
+MIN_FACE_CLARITY_SCORE = 50  # Laplacian variance threshold for blur detection
+MIN_FACE_SIZE_PIXELS = 100  # Minimum face width/height
+
+# Device Restrictions
+BLOCK_MOBILE_DEVICES = True
+ALLOWED_DEVICES = ['desktop', 'laptop']  # Block 'mobile', 'tablet'
+
+# Proctoring Settings
+PROCTORING_ENABLED = True
+SNAPSHOT_INTERVAL = 180  # 3 minutes
+EVENT_SCREENSHOTS_ENABLED = True

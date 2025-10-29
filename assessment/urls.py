@@ -38,6 +38,9 @@ urlpatterns = [
     path('test/<int:test_id>/consent/', proctoring_views.test_consent_form, name='test_consent'),
     path('proctoring/images/<int:attempt_id>/', proctoring_views.view_candidate_images, name='view_candidate_images'),
     
+    path('test/<int:test_id>/device-check/', proctoring_views.check_device_compatibility, name='device_check'),
+    path('proctoring/verify-face/<int:attempt_id>/', proctoring_views.verify_candidate_face, name='verify_face'),
+    
     # User Analytics
     path('analytics/', analytics_views.user_analytics_dashboard, name='user_analytics'),
     

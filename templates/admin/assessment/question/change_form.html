@@ -1,48 +1,59 @@
 {% extends "admin/base_site.html" %}
 {% load static %}
+{% load admin_urls %}
 
 {% block extrastyle %}
+{{ block.super }}
+{{ media.css }}
 <style>
     .form-container {
         max-width: 1200px;
         margin: 20px auto;
-        padding: 30px;
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        padding: 0;
+        background: transparent;
+        border-radius: 0;
+        box-shadow: none;
     }
     
     .form-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: white;
-        padding: 25px 30px;
-        border-radius: 10px;
+        padding: 32px 40px;
+        border-radius: 12px;
         margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
     }
     
     .form-header h1 {
         margin: 0;
-        font-size: 2em;
+        font-size: 2.2em;
+        font-weight: 700;
+        letter-spacing: -0.5px;
     }
     
     .form-header p {
-        margin: 10px 0 0 0;
-        opacity: 0.9;
+        margin: 12px 0 0 0;
+        opacity: 0.95;
+        font-size: 1.05em;
+        font-weight: 400;
     }
     
     .form-section {
         margin-bottom: 30px;
-        padding: 25px;
-        background: #f8f9fa;
+        padding: 30px;
+        background: #f9fafb;
         border-radius: 8px;
-        border-left: 4px solid #667eea;
+        border-left: 4px solid #3b82f6;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
     
     .form-section h2 {
-        margin: 0 0 20px 0;
-        color: #1a1a1a;
-        font-size: 1.3em;
-        font-weight: 600;
+        margin: 0 0 24px 0;
+        color: #111827;
+        font-size: 1.4em;
+        font-weight: 700;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e5e7eb;
     }
     
     .form-row {
@@ -52,17 +63,52 @@
     .form-row label {
         display: block;
         margin-bottom: 8px;
-        color: #1a1a1a;
+        color: #111827;
         font-weight: 600;
         font-size: 14px;
+        line-height: 1.5;
     }
     
     .form-row .helptext {
         display: block;
-        margin-top: 5px;
-        color: #666;
-        font-size: 12px;
-        font-style: italic;
+        margin-top: 6px;
+        color: #111827 !important;
+        font-size: 13px;
+        font-style: normal;
+        line-height: 1.5;
+    }
+    
+    /* Override Django admin default help text colors */
+    .help, .helptext, .help-text {
+        color: #111827 !important;
+    }
+    
+    /* Ensure all form text is dark */
+    .form-row, .form-row p, .form-row span {
+        color: #1f2937;
+    }
+    
+    /* Force dark text in all info boxes */
+    .coordinate-preview, .coordinate-preview p, .coordinate-preview span,
+    .question-type-info, .question-type-info p, .question-type-info span {
+        color: #1f2937;
+    }
+    
+    /* Override any Django admin light text */
+    .form-section * {
+        color: inherit;
+    }
+    
+    .form-section label,
+    .form-section .helptext,
+    .form-section p,
+    .form-section span:not(.btn):not(.errorlist) {
+        color: #1f2937 !important;
+    }
+    
+    .form-section label {
+        color: #111827 !important;
+        font-weight: 600;
     }
     
     .form-row input[type="text"],
@@ -71,20 +117,56 @@
     .form-row textarea {
         width: 100%;
         padding: 12px;
-        border: 2px solid #e0e0e0;
+        border: 2px solid #d1d5db;
         border-radius: 6px;
         font-size: 14px;
-        transition: border-color 0.3s;
+        transition: all 0.3s;
         font-family: inherit;
+        background-color: #ffffff;
+        color: #1f2937;
+        box-sizing: border-box;
+    }
+    
+    .form-row select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        background-color: #ffffff !important;
+        color: #1f2937 !important;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23374151' d='M10.293 3.293L6 7.586 1.707 3.293A1 1 0 00.293 4.707l5 5a1 1 0 001.414 0l5-5a1 1 0 10-1.414-1.414z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 12px;
+        padding-right: 40px;
+        cursor: pointer;
+        line-height: 1.5;
+        height: auto;
+        min-height: 44px;
+    }
+    
+    .form-row select option {
+        color: #1f2937;
+        background-color: #ffffff;
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    .form-row select::-ms-expand {
+        display: none;
     }
     
     .form-row input[type="text"]:focus,
     .form-row input[type="number"]:focus,
     .form-row select:focus,
     .form-row textarea:focus {
-        border-color: #667eea;
+        border-color: #3b82f6;
         outline: none;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        background-color: #ffffff;
+    }
+    
+    .form-row select:hover {
+        border-color: #9ca3af;
     }
     
     .form-row textarea {
@@ -93,16 +175,58 @@
     }
     
     .form-row input[type="file"] {
-        padding: 10px;
-        border: 2px dashed #e0e0e0;
-        border-radius: 6px;
+        padding: 12px;
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
         width: 100%;
         cursor: pointer;
+        background: #f9fafb;
+        transition: all 0.3s;
+        color: #1f2937;
+        font-size: 14px;
+    }
+    
+    .form-row input[type="file"]::file-selector-button {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-right: 12px;
+    }
+    
+    .form-row input[type="file"]::file-selector-button:hover {
+        background: #2563eb;
+    }
+    
+    .form-row input[type="file"]::-webkit-file-upload-button {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        margin-right: 12px;
+    }
+    
+    .form-row input[type="file"]::-webkit-file-upload-button:hover {
+        background: #2563eb;
     }
     
     .form-row input[type="file"]:hover {
-        border-color: #667eea;
-        background: #f8f9fa;
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    
+    .form-row input[type="checkbox"] {
+        width: auto;
+        margin-right: 8px;
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
     }
     
     .form-grid {
@@ -119,88 +243,107 @@
     
     .btn-container {
         display: flex;
-        gap: 15px;
+        gap: 12px;
         justify-content: flex-start;
         margin-top: 30px;
         padding-top: 30px;
-        border-top: 2px solid #e0e0e0;
+        border-top: 2px solid #e5e7eb;
+        flex-wrap: wrap;
     }
     
     .btn {
-        padding: 12px 30px;
+        padding: 14px 28px;
         border: none;
-        border-radius: 6px;
-        font-size: 16px;
+        border-radius: 8px;
+        font-size: 15px;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.2s ease;
         text-decoration: none;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        line-height: 1.4;
     }
     
     .btn-primary {
-        background: #667eea;
-        color: white;
+        background: #3b82f6;
+        color: white !important;
     }
     
     .btn-primary:hover {
-        background: #5568d3;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        background: #2563eb;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-primary:active {
+        transform: translateY(0);
     }
     
     .btn-secondary {
-        background: #6c757d;
-        color: white;
+        background: #f3f4f6;
+        color: #111827;
+        border: 2px solid #d1d5db;
+        font-weight: 600;
     }
     
     .btn-secondary:hover {
-        background: #5a6268;
+        background: #e5e7eb;
+        border-color: #9ca3af;
+        color: #111827;
     }
     
     .btn-danger {
-        background: #dc3545;
-        color: white;
+        background: #ef4444;
+        color: white !important;
     }
     
     .btn-danger:hover {
-        background: #c82333;
+        background: #dc2626;
+        color: white !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
     }
     
     .question-type-info {
-        background: #e3f2fd;
-        padding: 15px;
-        border-radius: 6px;
-        margin-top: 10px;
-        border-left: 4px solid #2196F3;
+        background: #dbeafe;
+        padding: 16px 20px;
+        border-radius: 8px;
+        margin-top: 12px;
+        border-left: 4px solid #3b82f6;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        color: #1f2937;
     }
     
     .question-type-info strong {
-        color: #1565C0;
+        color: #111827;
+        font-size: 15px;
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 700;
     }
     
-    .collapsible-section {
-        margin-top: 10px;
+    .question-type-info ul {
+        margin: 10px 0 0 0;
+        padding-left: 20px;
     }
     
-    .collapsible-section summary {
-        cursor: pointer;
-        padding: 12px;
-        background: #e9ecef;
-        border-radius: 6px;
+    .question-type-info ul li {
+        margin-bottom: 8px;
+        line-height: 1.6;
+        color: #1f2937;
+    }
+    
+    .question-type-info ul li strong {
+        color: #111827;
+        display: inline;
+        margin: 0;
+        font-size: 14px;
         font-weight: 600;
-        color: #1a1a1a;
-        user-select: none;
-    }
-    
-    .collapsible-section summary:hover {
-        background: #dee2e6;
-    }
-    
-    .collapsible-section[open] summary {
-        background: #667eea;
-        color: white;
-        margin-bottom: 15px;
     }
     
     .required-field label::after {
@@ -211,76 +354,114 @@
     
     .errorlist {
         list-style: none;
-        padding: 10px 15px;
-        margin: 10px 0;
-        background: #f8d7da;
-        border-left: 4px solid #dc3545;
-        border-radius: 4px;
-        color: #721c24;
+        padding: 12px 16px;
+        margin: 12px 0;
+        background: #fef2f2;
+        border-left: 4px solid #ef4444;
+        border-radius: 6px;
+        color: #991b1b;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .errorlist li {
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+    
+    .errorlist li:last-child {
+        margin-bottom: 0;
+    }
+    
+    .errorlist strong {
+        color: #7f1d1d;
     }
     
     .coordinate-preview {
-        margin-top: 15px;
-        padding: 15px;
-        background: #fff3cd;
-        border-radius: 6px;
-        border-left: 4px solid #ffc107;
+        margin-top: 16px;
+        padding: 16px 20px;
+        background: #fef3c7;
+        border-radius: 8px;
+        border: 1px solid #fbbf24;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        color: #1f2937;
+    }
+    
+    .coordinate-preview strong {
+        color: #111827;
+        font-size: 15px;
+        font-weight: 700;
     }
     
     .coordinate-preview a {
-        color: #667eea;
+        color: #3b82f6;
         font-weight: 600;
         text-decoration: none;
+        transition: color 0.2s;
     }
     
     .coordinate-preview a:hover {
+        color: #2563eb;
         text-decoration: underline;
     }
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Show/hide relevant fields based on question type
-    const questionTypeSelect = document.querySelector('select[name="question_type"]');
-    if (questionTypeSelect) {
-        questionTypeSelect.addEventListener('change', function() {
-            updateVisibleFields(this.value);
-        });
-        
-        // Initialize on page load
-        updateVisibleFields(questionTypeSelect.value);
+    
+    /* Collapsible fieldsets */
+    .collapse {
+        display: none;
     }
     
-    function updateVisibleFields(questionType) {
-        const mcqSection = document.getElementById('mcq-section');
-        const dicomSection = document.getElementById('dicom-section');
-        const annotationSection = document.getElementById('annotation-section');
-        
-        // Hide all by default
-        if (mcqSection) mcqSection.style.display = 'none';
-        if (dicomSection) dicomSection.style.display = 'none';
-        if (annotationSection) annotationSection.style.display = 'none';
-        
-        // Show relevant sections
-        if (questionType === 'mcq' || questionType === 'spatial' || questionType === 'verbal' || 
-            questionType === 'numerical' || questionType === 'pattern' || questionType === 'error_detection') {
-            if (mcqSection) mcqSection.style.display = 'block';
-        }
-        
-        if (questionType === 'dicom' || questionType === 'image') {
-            if (dicomSection) dicomSection.style.display = 'block';
-        }
-        
-        if (questionType === 'annotation') {
-            if (annotationSection) annotationSection.style.display = 'block';
-        }
+    .collapse.show {
+        display: block;
     }
-});
-</script>
+    
+    fieldset.module {
+        border: none;
+    }
+    
+    /* Current image preview */
+    .current-image-preview {
+        margin-top: 12px;
+        padding: 16px;
+        background: #ffffff;
+        border-radius: 8px;
+        border: 2px solid #e5e7eb;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .current-image-preview strong {
+        color: #111827;
+        display: block;
+        margin-bottom: 12px;
+        font-size: 14px;
+    }
+    
+    .current-image-preview img {
+        max-width: 300px;
+        border-radius: 8px;
+        border: 2px solid #e5e7eb;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .current-image-preview p {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #374151;
+    }
+    
+    .current-image-preview label {
+        font-weight: 500;
+        color: #111827;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+{{ media.js }}
 {% endblock %}
 
 {% block content %}
-<div style="background: #f5f7fa; min-height: 100vh; padding: 20px;">
+<div style="background: #f3f4f6; min-height: 100vh; padding: 20px;">
     <div class="form-container">
         <div class="form-header">
             <h1>{% if original %}✏️ Edit Question{% else %}➕ Add New Question{% endif %}</h1>
@@ -290,186 +471,175 @@ document.addEventListener('DOMContentLoaded', function() {
         <form method="post" enctype="multipart/form-data" id="question-form">
             {% csrf_token %}
             
-            <!-- Django admin hidden fields -->
+            <!-- Management form for inlines -->
+            {% if inline_admin_formsets %}
+                {% for inline_admin_formset in inline_admin_formsets %}
+                    {{ inline_admin_formset.formset.management_form }}
+                {% endfor %}
+            {% endif %}
+            
+            <!-- Hidden fields -->
             {% if adminform %}
                 {% for field in adminform.form.hidden_fields %}
                     {{ field }}
                 {% endfor %}
             {% endif %}
             
-            <!-- Display form errors -->
-            {% if form.errors or adminform.form.errors %}
-            <div class="errorlist">
-                <strong>⚠️ Please correct the following errors:</strong>
-                <ul>
-                {% for field in adminform.form %}
-                    {% if field.errors %}
-                        {% for error in field.errors %}
-                        <li>{{ field.label }}: {{ error }}</li>
+            <!-- Display form-wide errors -->
+            {% if errors %}
+                <div class="errorlist">
+                    <strong>⚠️ Please correct the following errors:</strong>
+                    <ul>
+                        {{ errors }}
+                    </ul>
+                </div>
+            {% endif %}
+            
+            <!-- Display non-field errors -->
+            {% if adminform.form.non_field_errors %}
+                <div class="errorlist">
+                    <strong>⚠️ Form Errors:</strong>
+                    <ul>
+                        {% for error in adminform.form.non_field_errors %}
+                            <li>{{ error }}</li>
                         {% endfor %}
-                    {% endif %}
-                {% endfor %}
-                {% if adminform.form.non_field_errors %}
-                    {% for error in adminform.form.non_field_errors %}
-                    <li>{{ error }}</li>
-                    {% endfor %}
-                {% endif %}
-                </ul>
-            </div>
+                    </ul>
+                </div>
             {% endif %}
 
-            <!-- Basic Information -->
-            <div class="form-section">
-                <h2>📋 Basic Information</h2>
-                
-                {% for fieldset in adminform %}
+            <!-- Render all fieldsets properly -->
+            {% for fieldset in adminform %}
+                <div class="form-section {% if fieldset.classes %}{{ fieldset.classes }}{% endif %}" 
+                     id="fieldset-{{ forloop.counter }}">
+                    {% if fieldset.name %}
+                        <h2>{{ fieldset.name }}</h2>
+                    {% endif %}
+                    
+                    {% if fieldset.description %}
+                        <div class="description">{{ fieldset.description|safe }}</div>
+                    {% endif %}
+                    
                     {% for line in fieldset %}
-                        {% for field in line %}
-                            {% if field.field.name == 'topic' or field.field.name == 'question_type' or field.field.name == 'question_text' or field.field.name == 'question_image' or field.field.name == 'difficulty_level' or field.field.name == 'time_limit_seconds' or field.field.name == 'points' %}
-                                <div class="form-row {% if field.field.required %}required-field{% endif %}">
-                                    <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
-                                    {{ field.field }}
-                                    {% if field.field.help_text %}
-                                    <span class="helptext">{{ field.field.help_text }}</span>
-                                    {% endif %}
-                                    {% if field.field.errors %}
-                                        <ul class="errorlist">
-                                            {% for error in field.field.errors %}
-                                            <li>{{ error }}</li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% endif %}
-                                    
-                                    {% if field.field.name == 'question_type' %}
-                                    <div class="question-type-info">
-                                        <strong>Question Types:</strong>
-                                        <ul style="margin: 10px 0; padding-left: 20px;">
-                                            <li><strong>MCQ:</strong> Multiple choice questions with 4 options</li>
-                                            <li><strong>Spatial:</strong> Questions testing spatial reasoning</li>
-                                            <li><strong>Verbal:</strong> Language and comprehension questions</li>
-                                            <li><strong>Numerical:</strong> Math and number problems</li>
-                                            <li><strong>Pattern:</strong> Pattern recognition questions</li>
-                                            <li><strong>DICOM:</strong> Medical imaging questions (requires DICOM file)</li>
-                                            <li><strong>Image:</strong> Image-based questions with hotspot coordinates</li>
-                                            <li><strong>Annotation:</strong> Image annotation tasks</li>
-                                        </ul>
-                                    </div>
-                                    {% endif %}
-                                    
-                                    {% if field.field.name == 'question_image' and original and original.question_image %}
-                                    <div style="margin-top: 10px;">
-                                        <img src="{{ original.question_image.url }}" alt="Current image" style="max-width: 300px; border-radius: 6px; border: 2px solid #e0e0e0;">
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                {% endfor %}
-            </div>
-
-            <!-- MCQ Options Section -->
-            <div class="form-section" id="mcq-section" style="display: none;">
-                <h2>📝 Answer Options (Multiple Choice)</h2>
-                
-                {% for fieldset in adminform %}
-                    {% for line in fieldset %}
-                        {% for field in line %}
-                            {% if field.field.name == 'option_a' or field.field.name == 'option_b' or field.field.name == 'option_c' or field.field.name == 'option_d' or field.field.name == 'correct_answer' %}
-                                <div class="form-row {% if field.field.required %}required-field{% endif %}">
-                                    <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
-                                    {{ field.field }}
-                                    {% if field.field.name == 'correct_answer' %}
-                                    <span class="helptext">Select which option is correct (A, B, C, or D)</span>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                {% endfor %}
-            </div>
-
-            <!-- DICOM/Image Section -->
-            <div class="form-section" id="dicom-section" style="display: none;">
-                <h2>🖼️ DICOM/Image Question Settings</h2>
-                
-                {% for fieldset in adminform %}
-                    {% for line in fieldset %}
-                        {% for field in line %}
-                            {% if field.field.name == 'dicom_file' or field.field.name == 'hotspot_coordinates' %}
-                                <div class="form-row">
-                                    <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
-                                    {{ field.field }}
-                                    {% if field.field.name == 'hotspot_coordinates' %}
-                                    <span class="helptext">Use the coordinate picker tool below instead of entering JSON manually</span>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                {% endfor %}
-                
-                {% if original and original.id %}
-                <div class="coordinate-preview">
-                    <strong>📍 Set Coordinates Visually:</strong><br>
-                    Click on the image to mark the correct answer location.<br>
-                    <a href="{% url 'admin:question_set_coordinates' original.id %}" class="btn btn-primary" style="margin-top: 10px; display: inline-block;">
-                        Open Coordinate Picker
-                    </a>
-                </div>
-                {% else %}
-                <div class="coordinate-preview">
-                    <strong>ℹ️ Note:</strong> Save the question first, then you can set coordinates using the visual picker.
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Annotation Section -->
-            <div class="form-section" id="annotation-section" style="display: none;">
-                <h2>✏️ Annotation Question Settings</h2>
-                
-                {% for fieldset in adminform %}
-                    {% for line in fieldset %}
-                        {% for field in line %}
-                            {% if field.field.name == 'ground_truth_file' or field.field.name == 'dice_threshold' %}
-                                <div class="form-row">
-                                    <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
-                                    {{ field.field }}
-                                    {% if field.field.name == 'dice_threshold' %}
-                                    <span class="helptext">Minimum DICE score for correct answer (0.0 - 1.0)</span>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                    {% endfor %}
-                {% endfor %}
-            </div>
-
-            <!-- Additional Info -->
-            <div class="form-section">
-                <h2>ℹ️ Additional Information</h2>
-                
-                {% for fieldset in adminform %}
-                    {% for line in fieldset %}
-                        {% for field in line %}
-                            {% if field.field.name == 'explanation' or field.field.name == 'is_active' %}
-                                <div class="form-row">
-                                    {% if field.field.name == 'is_active' %}
-                                        <label for="{{ field.field.html_name }}">
+                        <div class="form-row{% if line.fields|length_is:'1' and line.errors %} errors{% endif %}{% if not line.has_visible_field %} hidden{% endif %}{% for field in line %}{% if field.field.name %} field-{{ field.field.name }}{% endif %}{% endfor %}">
+                            {% if line.fields|length_is:'1' %}
+                                <!-- Single field per line -->
+                                {% for field in line %}
+                                    <div class="{% if field.is_checkbox %}checkbox-row{% endif %} {% if field.field.required %}required-field{% endif %}">
+                                        {% if not field.is_checkbox %}
+                                            {{ field.label_tag }}
+                                        {% endif %}
+                                        
+                                        {% if field.is_readonly %}
+                                            <p>{{ field.contents }}</p>
+                                        {% else %}
                                             {{ field.field }}
-                                            Active (question will appear in tests)
-                                        </label>
-                                    {% else %}
-                                        <label for="{{ field.field.html_name }}">{{ field.field.label }}</label>
-                                        {{ field.field }}
-                                        <span class="helptext">Explain why the answer is correct (shown after submission)</span>
-                                    {% endif %}
+                                        {% endif %}
+                                        
+                                        {% if field.is_checkbox %}
+                                            {{ field.label_tag }}
+                                        {% endif %}
+                                        
+                                        {% if field.field.help_text %}
+                                            <span class="helptext">{{ field.field.help_text|safe }}</span>
+                                        {% endif %}
+                                        
+                                        {% if field.field.errors %}
+                                            <ul class="errorlist">
+                                                {% for error in field.field.errors %}
+                                                    <li>{{ error }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+                                        
+                                        <!-- Special handling for question_type field -->
+                                        {% if field.field.name == 'question_type' %}
+                                            <div class="question-type-info">
+                                                <strong>Question Types:</strong>
+                                                <ul style="margin: 10px 0; padding-left: 20px;">
+                                                    <li><strong>MCQ:</strong> Multiple choice questions with 4 options</li>
+                                                    <li><strong>Spatial:</strong> Questions testing spatial reasoning</li>
+                                                    <li><strong>Verbal:</strong> Language and comprehension questions</li>
+                                                    <li><strong>Numerical:</strong> Math and number problems</li>
+                                                    <li><strong>Pattern:</strong> Pattern recognition questions</li>
+                                                    <li><strong>Error Detection:</strong> Finding mistakes in content</li>
+                                                    <li><strong>DICOM:</strong> Medical imaging questions (requires DICOM file)</li>
+                                                    <li><strong>Image:</strong> Image-based questions with hotspot coordinates</li>
+                                                    <li><strong>Annotation:</strong> Image annotation tasks</li>
+                                                </ul>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        <!-- Preview for question_image if exists -->
+                                        {% if field.field.name == 'question_image' and original and original.question_image %}
+                                            <div class="current-image-preview">
+                                                <strong>Current image:</strong><br>
+                                                <img src="{{ original.question_image.url }}" alt="Current question image">
+                                                <p style="margin-top: 5px; font-size: 12px; color: #374151;">
+                                                    <input type="checkbox" name="question_image-clear" id="question_image-clear_id">
+                                                    <label for="question_image-clear_id">Clear</label>
+                                                </p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <!-- Multiple fields per line (grid layout) -->
+                                <div class="form-grid">
+                                    {% for field in line %}
+                                        <div class="{% if field.is_checkbox %}checkbox-row{% endif %} {% if field.field.required %}required-field{% endif %}">
+                                            {% if not field.is_checkbox %}
+                                                {{ field.label_tag }}
+                                            {% endif %}
+                                            
+                                            {% if field.is_readonly %}
+                                                <p>{{ field.contents }}</p>
+                                            {% else %}
+                                                {{ field.field }}
+                                            {% endif %}
+                                            
+                                            {% if field.is_checkbox %}
+                                                {{ field.label_tag }}
+                                            {% endif %}
+                                            
+                                            {% if field.field.help_text %}
+                                                <span class="helptext">{{ field.field.help_text|safe }}</span>
+                                            {% endif %}
+                                            
+                                            {% if field.field.errors %}
+                                                <ul class="errorlist">
+                                                    {% for error in field.field.errors %}
+                                                        <li>{{ error }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
                                 </div>
                             {% endif %}
-                        {% endfor %}
+                        </div>
                     {% endfor %}
-                {% endfor %}
-            </div>
+                    
+                    <!-- Special coordinate picker for DICOM/Image questions -->
+                    {% if fieldset.name == 'DICOM Question Settings' and original and original.id %}
+                        <div class="coordinate-preview">
+                            <strong>📍 Set Coordinates Visually:</strong><br>
+                            Click on the image to mark the correct answer location.<br>
+                            <a href="{% url 'admin:question_set_coordinates' original.id %}" class="btn btn-primary" style="margin-top: 10px; display: inline-block;">
+                                Open Coordinate Picker
+                            </a>
+                        </div>
+                    {% elif fieldset.name == 'DICOM Question Settings' and not original %}
+                        <div class="coordinate-preview">
+                            <strong>ℹ️ Note:</strong> Save the question first, then you can set coordinates using the visual picker.
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <!-- Inline formsets (if any) -->
+            {% for inline_admin_formset in inline_admin_formsets %}
+                {% include inline_admin_formset.opts.template %}
+            {% endfor %}
 
             <!-- Action Buttons -->
             <div class="btn-container">
@@ -486,9 +656,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     ❌ Cancel
                 </a>
                 {% if original %}
-                <a href="{% url 'admin:assessment_question_delete' original.pk %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this question?')">
-                    🗑️ Delete
-                </a>
+                    <a href="{% url 'admin:assessment_question_delete' original.pk %}" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete this question?')">
+                        🗑️ Delete
+                    </a>
                 {% endif %}
             </div>
         </form>
@@ -497,40 +667,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Show/hide relevant fields based on question type
+    // Show/hide relevant fieldsets based on question type
     const questionTypeSelect = document.querySelector('select[name="question_type"]');
+    
     if (questionTypeSelect) {
+        function updateVisibleFieldsets(questionType) {
+            // Find all fieldsets
+            const mcqFieldset = Array.from(document.querySelectorAll('.form-section')).find(
+                section => section.querySelector('h2')?.textContent.includes('Answer Options')
+            );
+            const dicomFieldset = Array.from(document.querySelectorAll('.form-section')).find(
+                section => section.querySelector('h2')?.textContent.includes('DICOM')
+            );
+            const annotationFieldset = Array.from(document.querySelectorAll('.form-section')).find(
+                section => section.querySelector('h2')?.textContent.includes('Annotation')
+            );
+            
+            // Hide all conditional sections by default
+            [mcqFieldset, dicomFieldset, annotationFieldset].forEach(fieldset => {
+                if (fieldset) {
+                    fieldset.style.display = 'none';
+                }
+            });
+            
+            // Show relevant sections based on question type
+            if (['mcq', 'spatial', 'verbal', 'numerical', 'pattern', 'error_detection'].includes(questionType)) {
+                if (mcqFieldset) mcqFieldset.style.display = 'block';
+            }
+            
+            if (['dicom', 'image'].includes(questionType)) {
+                if (dicomFieldset) dicomFieldset.style.display = 'block';
+            }
+            
+            if (questionType === 'annotation') {
+                if (annotationFieldset) annotationFieldset.style.display = 'block';
+            }
+        }
+        
+        // Listen for changes
         questionTypeSelect.addEventListener('change', function() {
-            updateVisibleFields(this.value);
+            updateVisibleFieldsets(this.value);
         });
         
         // Initialize on page load
-        updateVisibleFields(questionTypeSelect.value);
-    }
-    
-    function updateVisibleFields(questionType) {
-        const mcqSection = document.getElementById('mcq-section');
-        const dicomSection = document.getElementById('dicom-section');
-        const annotationSection = document.getElementById('annotation-section');
-        
-        // Hide all by default
-        if (mcqSection) mcqSection.style.display = 'none';
-        if (dicomSection) dicomSection.style.display = 'none';
-        if (annotationSection) annotationSection.style.display = 'none';
-        
-        // Show relevant sections
-        if (questionType === 'mcq' || questionType === 'spatial' || questionType === 'verbal' || 
-            questionType === 'numerical' || questionType === 'pattern' || questionType === 'error_detection') {
-            if (mcqSection) mcqSection.style.display = 'block';
-        }
-        
-        if (questionType === 'dicom' || questionType === 'image') {
-            if (dicomSection) dicomSection.style.display = 'block';
-        }
-        
-        if (questionType === 'annotation') {
-            if (annotationSection) annotationSection.style.display = 'block';
-        }
+        updateVisibleFieldsets(questionTypeSelect.value);
     }
 });
 </script>

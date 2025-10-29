@@ -41,9 +41,9 @@
         <!-- UPDATED: Start Test Button now goes to consent form -->
         <div class="flex gap-4">
             <!-- CHANGED: href now points to test_consent instead of start_test -->
-            <a href="{% url 'test_consent' test.id %}" 
-               class="flex-1 bg-green-600 text-white text-center py-4 rounded-lg hover:bg-green-700 transition text-lg font-semibold">
-                📷 Start Test (Review Consent)
+            <a href="{% url 'device_check' test.id %}" 
+            class="bg-green-600 text-white px-6 py-4 rounded-lg hover:bg-green-700 transition font-semibold text-lg">
+                Start Test
             </a>
             <a href="{% url 'dashboard' %}" 
                class="flex-1 bg-gray-300 text-gray-700 text-center py-4 rounded-lg hover:bg-gray-400 transition text-lg font-semibold">

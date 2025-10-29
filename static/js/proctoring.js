@@ -3,14 +3,31 @@ class ProctoringSystem {
         this.attemptId = attemptId;
         this.snapshotIntervalSeconds = snapshotIntervalSeconds;
         this.csrfToken = csrfToken;
+        
+        // Camera & monitoring
         this.videoStream = null;
         this.snapshotTimer = null;
         this.streamMonitorTimer = null;
-        this.warningCount = 0;
-        this.maxWarnings = 3;
-        this.isFullscreen = false;
         this.permissionsGranted = false;
         this.cameraDisabledWarningShown = false;
+        
+        // Warning system
+        this.warningCount = 0;
+        this.maxWarnings = 3;
+        
+        // Fullscreen
+        this.isFullscreen = false;
+        
+        // Event-triggered screenshot settings (NEW)
+        this.captureOnEvents = true;  // Enable/disable event-triggered screenshots
+        this.eventScreenshotDelay = 100;  // Milliseconds to wait before capture
+        this.lastEventScreenshotTime = 0;  // Prevent duplicate screenshots
+        this.eventScreenshotCooldown = 2000;  // Min 2 seconds between event screenshots
+        
+        // Window focus tracking (NEW)
+        this.windowHasFocus = true;
+        this.windowBlurTime = null;
+        this.windowFocusTime = null;
         
         // URLs
         this.snapshotUploadUrl = `/proctoring/snapshot/${attemptId}/`;
@@ -37,26 +54,37 @@ class ProctoringSystem {
             // 2. Start continuous camera monitoring
             this.startCameraMonitoring();
             
-            // 3. Setup browser lockdown
+            // 3. Setup browser lockdown (with screenshot capture on violations)
             this.setupBrowserLockdown();
             
-            // 4. Force fullscreen
+            // 4. Setup enhanced event tracking (NEW - with away time tracking)
+            this.setupEnhancedEventTracking();
+            
+            // 5. Force fullscreen
             this.enterFullscreen();
             
-            // 5. Start snapshot timer
+            // 6. Start snapshot timer
             this.startSnapshotTimer();
             
-            // 6. Log IP address
+            // 7. Log IP address
             await this.logIPAddress();
             
-            // 7. Log successful initialization
+            // 8. Log successful initialization
             await this.logEvent('proctoring_initialized', {
                 severity: 'info',
                 snapshot_interval: this.snapshotIntervalSeconds,
-                features: ['camera_monitoring', 'browser_lockdown', 'fullscreen', 'screenshots']
+                event_screenshots_enabled: this.captureOnEvents,
+                features: [
+                    'camera_monitoring', 
+                    'browser_lockdown', 
+                    'fullscreen', 
+                    'periodic_screenshots',
+                    'event_triggered_screenshots',
+                    'away_time_tracking'
+                ]
             });
             
-            console.log('✓ Proctoring system initialized successfully');
+            console.log('✓ Enhanced proctoring system initialized successfully');
             return true;
         } catch (error) {
             console.error('✗ Proctoring initialization failed:', error);
@@ -114,6 +142,13 @@ class ProctoringSystem {
             } else if (error.name === 'NotReadableError') {
                 console.error('Camera is already in use');
             }
+            
+            // Log permission denied
+            await this.logEvent('camera_access_denied', {
+                error: error.message,
+                error_name: error.name,
+                severity: 'critical'
+            });
             
             return false;
         }
@@ -359,7 +394,281 @@ class ProctoringSystem {
     }
     
     /**
-     * Capture and upload webcam snapshot
+     * NEW: Setup enhanced event tracking with screenshot capture
+     * Includes away time calculation and detailed focus tracking
+     */
+    setupEnhancedEventTracking() {
+        console.log('Setting up enhanced event tracking with screenshots...');
+        
+        // Track tab visibility changes (tab switching)
+        document.addEventListener('visibilitychange', async () => {
+            if (document.hidden) {
+                // User switched away - capture IMMEDIATELY before they leave
+                console.log('🚨 Tab switch detected - capturing screenshot');
+                
+                this.warningCount++;
+                
+                // Capture screenshot of current state
+                await this.captureEventScreenshot('tab_switch', {
+                    warning_count: this.warningCount,
+                    severity: this.warningCount >= this.maxWarnings ? 'critical' : 'warning',
+                    blur_timestamp: new Date().toISOString()
+                });
+                
+                // Log the event
+                await this.logEvent('tab_switched', { 
+                    warning_count: this.warningCount,
+                    severity: this.warningCount >= this.maxWarnings ? 'critical' : 'warning'
+                });
+                
+                // Store blur time
+                this.windowBlurTime = Date.now();
+                this.windowHasFocus = false;
+                
+                if (this.warningCount >= this.maxWarnings) {
+                    alert(`Warning ${this.warningCount}/${this.maxWarnings}: Tab switching not allowed!`);
+                }
+            } else {
+                // User returned - calculate how long they were away
+                this.windowHasFocus = true;
+                this.windowFocusTime = Date.now();
+                
+                if (this.windowBlurTime) {
+                    const awayTimeSeconds = Math.round((this.windowFocusTime - this.windowBlurTime) / 1000);
+                    
+                    await this.logEvent('tab_returned', {
+                        away_time_seconds: awayTimeSeconds,
+                        severity: awayTimeSeconds > 30 ? 'warning' : 'info'
+                    });
+                    
+                    console.log(`User returned after ${awayTimeSeconds} seconds away`);
+                }
+            }
+        });
+        
+        // Track window blur (losing focus - e.g., clicking outside browser)
+        window.addEventListener('blur', async () => {
+            console.log('🚨 Window lost focus - capturing screenshot');
+            
+            // Capture screenshot
+            await this.captureEventScreenshot('window_blur', {
+                severity: 'warning',
+                blur_timestamp: new Date().toISOString()
+            });
+            
+            // Log event
+            await this.logEvent('window_blur', { severity: 'warning' });
+            
+            this.windowHasFocus = false;
+            this.windowBlurTime = Date.now();
+        });
+        
+        // Track window focus (regaining focus)
+        window.addEventListener('focus', async () => {
+            if (!this.windowHasFocus && this.windowBlurTime) {
+                const awayTimeSeconds = Math.round((Date.now() - this.windowBlurTime) / 1000);
+                
+                await this.logEvent('window_focus_returned', {
+                    away_time_seconds: awayTimeSeconds,
+                    severity: awayTimeSeconds > 30 ? 'warning' : 'info'
+                });
+                
+                console.log(`Window focus returned after ${awayTimeSeconds} seconds`);
+            }
+            
+            this.windowHasFocus = true;
+            this.windowFocusTime = Date.now();
+        });
+        
+        // Track fullscreen exits
+        document.addEventListener('fullscreenchange', async () => {
+            if (!document.fullscreenElement) {
+                console.log('🚨 Fullscreen exit detected - capturing screenshot');
+                
+                // Capture screenshot
+                await this.captureEventScreenshot('fullscreen_exit', {
+                    severity: 'warning',
+                    exit_timestamp: new Date().toISOString()
+                });
+                
+                // Log event
+                await this.logEvent('fullscreen_exit', { severity: 'warning' });
+                
+                // Try to re-enter fullscreen
+                setTimeout(() => this.enterFullscreen(), 100);
+            }
+        });
+        
+        console.log('✓ Enhanced event tracking enabled');
+    }
+    
+    /**
+     * Setup browser lockdown features (with screenshot capture on violations)
+     */
+    setupBrowserLockdown() {
+        // Right-click attempts with screenshot capture after multiple attempts
+        let rightClickCount = 0;
+        document.addEventListener('contextmenu', async (e) => {
+            e.preventDefault();
+            rightClickCount++;
+            
+            // Capture screenshot after multiple attempts
+            if (rightClickCount >= 3) {
+                console.log('🚨 Multiple right-click attempts - capturing screenshot');
+                await this.captureEventScreenshot('right_click_violation', {
+                    attempt_count: rightClickCount,
+                    severity: 'warning'
+                });
+            }
+            
+            await this.logEvent('right_click_blocked', { 
+                attempt_count: rightClickCount,
+                severity: rightClickCount >= 3 ? 'warning' : 'info'
+            });
+        });
+        
+        // Keyboard shortcut attempts with screenshot capture
+        let shortcutAttempts = 0;
+        document.addEventListener('keydown', async (e) => {
+            // Dev tools attempts
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                shortcutAttempts++;
+                
+                // Capture screenshot after multiple attempts
+                if (shortcutAttempts >= 3) {
+                    console.log('🚨 Multiple devtools attempts - capturing screenshot');
+                    await this.captureEventScreenshot('devtools_violation', {
+                        attempt_count: shortcutAttempts,
+                        severity: 'warning'
+                    });
+                }
+                
+                await this.logEvent('devtools_blocked', { 
+                    attempt_count: shortcutAttempts,
+                    severity: shortcutAttempts >= 3 ? 'warning' : 'info'
+                });
+            }
+            
+            // Copy/paste attempts with immediate screenshot
+            if (e.ctrlKey && (e.key === 'c' || e.key === 'v')) {
+                e.preventDefault();
+                
+                console.log('🚨 Copy/paste attempt - capturing screenshot');
+                await this.captureEventScreenshot('copy_paste_attempt', {
+                    action: e.key === 'c' ? 'copy' : 'paste',
+                    severity: 'warning'
+                });
+                
+                await this.logEvent('copy_paste_blocked', { 
+                    action: e.key === 'c' ? 'copy' : 'paste',
+                    severity: 'warning'
+                });
+            }
+        });
+        
+        console.log('✓ Browser lockdown enabled with screenshot capture');
+    }
+    
+    /**
+     * NEW: Capture screenshot triggered by specific event
+     * These are saved separately from periodic snapshots
+     */
+    async captureEventScreenshot(eventType, metadata = {}) {
+        if (!this.captureOnEvents) {
+            console.log('Event screenshots disabled');
+            return;
+        }
+        
+        // Cooldown check - prevent duplicate screenshots
+        const now = Date.now();
+        if (now - this.lastEventScreenshotTime < this.eventScreenshotCooldown) {
+            console.log('Event screenshot cooldown active, skipping');
+            return;
+        }
+        
+        this.lastEventScreenshotTime = now;
+        
+        try {
+            // Small delay to capture the last state before user leaves
+            await new Promise(resolve => setTimeout(resolve, this.eventScreenshotDelay));
+            
+            console.log(`📸 Capturing event-triggered screenshot: ${eventType}`);
+            
+            // Capture screenshot using html2canvas
+            const canvas = await html2canvas(document.body, {
+                allowTaint: true,
+                useCORS: true,
+                logging: false,
+                scale: 0.5,  // Same as periodic screenshots
+                backgroundColor: '#ffffff',
+                removeContainer: true,
+                imageTimeout: 5000,  // Faster timeout for event captures
+                onclone: (clonedDoc) => {
+                    // Remove problematic elements
+                    const problematic = clonedDoc.querySelectorAll('video, iframe, embed');
+                    problematic.forEach(el => el.remove());
+                }
+            });
+            
+            // Convert to blob
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(resolve, 'image/jpeg', 0.6);
+            });
+            
+            if (!blob) {
+                console.error('Failed to create blob from canvas');
+                return;
+            }
+            
+            // Upload with special event type marker
+            await this.uploadEventSnapshot(blob, eventType, metadata);
+            
+            console.log(`✓ Event screenshot captured: ${eventType}`);
+            
+        } catch (error) {
+            console.error(`✗ Failed to capture event screenshot (${eventType}):`, error);
+            
+            // Log the failure
+            await this.logEvent('event_screenshot_failed', {
+                event_type: eventType,
+                error: error.message,
+                severity: 'info'
+            });
+        }
+    }
+    
+    /**
+     * NEW: Upload event-triggered snapshot with special metadata
+     */
+    async uploadEventSnapshot(blob, eventType, metadata = {}) {
+        const formData = new FormData();
+        formData.append('snapshot', blob, `event_${eventType}_${Date.now()}.jpg`);
+        formData.append('snapshot_type', `event_${eventType}`);  // Special type for events
+        formData.append('event_metadata', JSON.stringify(metadata));
+        formData.append('csrfmiddlewaretoken', this.csrfToken);
+        
+        try {
+            const response = await fetch(this.snapshotUploadUrl, {
+                method: 'POST',
+                body: formData,
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+            
+            console.log(`✓ Event snapshot uploaded: ${eventType}`);
+            
+        } catch (error) {
+            console.error('Event snapshot upload error:', error);
+        }
+    }
+    
+    /**
+     * Capture and upload webcam snapshot (periodic)
      */
     async captureWebcamSnapshot() {
         if (!this.videoStream || !this.permissionsGranted) {
@@ -398,16 +707,16 @@ class ProctoringSystem {
             });
             
             // Upload snapshot
-            await this.uploadSnapshot(blob);
+            await this.uploadSnapshot(blob, 'webcam');
             
             console.log('✓ Webcam snapshot captured and uploaded');
         } catch (error) {
-            console.error('✗ Failed to capture snapshot:', error);
+            console.error('✗ Failed to capture webcam snapshot:', error);
         }
     }
     
     /**
-     * Capture and upload screen screenshot
+     * Capture and upload screen screenshot (periodic)
      */
     async captureScreenshot() {
         try {
@@ -415,7 +724,10 @@ class ProctoringSystem {
                 allowTaint: true,
                 useCORS: true,
                 logging: false,
-                scale: 0.5 // Reduce size for faster upload
+                scale: 0.5, // Reduce size for faster upload
+                backgroundColor: '#ffffff',
+                removeContainer: true,
+                imageTimeout: 15000
             });
             
             const blob = await new Promise(resolve => {
@@ -424,14 +736,14 @@ class ProctoringSystem {
             
             await this.uploadSnapshot(blob, 'screen');
             
-            console.log('✓ Screenshot captured and uploaded');
+            console.log('✓ Screen screenshot captured and uploaded');
         } catch (error) {
-            console.error('✗ Failed to capture screenshot:', error);
+            console.error('✗ Failed to capture screen screenshot:', error);
         }
     }
     
     /**
-     * Upload snapshot to server
+     * Upload standard periodic snapshot
      */
     async uploadSnapshot(blob, type = 'webcam') {
         const formData = new FormData();
@@ -466,53 +778,8 @@ class ProctoringSystem {
             this.captureWebcamSnapshot();
             this.captureScreenshot();
         }, this.snapshotIntervalSeconds * 1000);
-    }
-    
-    /**
-     * Setup browser lockdown features
-     */
-    setupBrowserLockdown() {
-        // Disable right-click
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            this.logEvent('right_click_blocked');
-        });
         
-        // Disable common keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
-            if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
-                (e.ctrlKey && e.key === 'U')) {
-                e.preventDefault();
-                this.logEvent('devtools_blocked');
-            }
-            
-            // Ctrl+C, Ctrl+V
-            if (e.ctrlKey && (e.key === 'c' || e.key === 'v')) {
-                e.preventDefault();
-                this.logEvent('copy_paste_blocked');
-            }
-        });
-        
-        // Tab visibility detection
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                this.warningCount++;
-                this.logEvent('tab_switched', { warning_count: this.warningCount });
-                
-                if (this.warningCount >= this.maxWarnings) {
-                    alert(`Warning ${this.warningCount}/${this.maxWarnings}: Tab switching is not allowed! Your test may be flagged.`);
-                }
-            }
-        });
-        
-        // Window blur detection
-        window.addEventListener('blur', () => {
-            this.logEvent('window_blur');
-        });
-        
-        console.log('✓ Browser lockdown enabled');
+        console.log(`✓ Snapshot timer started (every ${this.snapshotIntervalSeconds} seconds)`);
     }
     
     /**
@@ -526,19 +793,10 @@ class ProctoringSystem {
                 console.error('Fullscreen request failed:', err);
             });
         }
-        
-        // Monitor fullscreen exits
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) {
-                this.logEvent('fullscreen_exit');
-                // Try to re-enter fullscreen
-                setTimeout(() => this.enterFullscreen(), 100);
-            }
-        });
     }
     
     /**
-     * Log IP address to database
+     * Log IP address to database with fallback
      * UPDATED: Properly saves IP to TestAttempt model
      */
     async logIPAddress() {
@@ -566,12 +824,13 @@ class ProctoringSystem {
     }
     
     /**
-     * Log proctoring event
+     * Log proctoring event to backend
      */
     async logEvent(eventType, extraData = {}) {
         const eventData = {
             event_type: eventType,
             timestamp: new Date().toISOString(),
+            metadata: extraData,
             ...extraData
         };
         
@@ -590,7 +849,7 @@ class ProctoringSystem {
     }
     
     /**
-     * Cleanup resources
+     * Cleanup resources when exam ends
      */
     cleanup() {
         // Stop camera monitoring

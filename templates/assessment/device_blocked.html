@@ -1,0 +1,182 @@
+<!-- templates/assessment/device_blocked.html -->
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Device Not Supported{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-4">
+    <div class="max-w-2xl w-full">
+        <!-- Main Card -->
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-red-500 to-orange-500 p-8 text-white text-center">
+                <div class="text-7xl mb-4">📱🚫</div>
+                <h1 class="text-3xl font-bold mb-2">Mobile Devices Not Supported</h1>
+                <p class="text-red-100 text-lg">This test requires a desktop or laptop computer</p>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-8">
+                <!-- Alert Box -->
+                <div class="bg-red-50 border-l-4 border-red-500 p-6 mb-6 rounded-lg">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-lg font-bold text-red-800 mb-2">Access Denied</h3>
+                            <p class="text-red-700">
+                                <strong>Test:</strong> {{ test.title }}<br>
+                                <strong>Your Device:</strong> {{ device_type|title }}<br>
+                                <strong>Allowed Devices:</strong> {{ allowed_devices|title }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Why This Restriction -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <span class="text-3xl mr-3">🎯</span>
+                        Why Desktop/Laptop Only?
+                    </h2>
+                    <div class="space-y-3 text-gray-700">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold">1</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="font-semibold">Proctoring Requirements</p>
+                                <p class="text-sm text-gray-600">The test requires webcam monitoring and full-screen mode which work best on computers.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold">2</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="font-semibold">Screen Real Estate</p>
+                                <p class="text-sm text-gray-600">Complex medical imaging and DICOM viewers need larger screens for proper evaluation.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold">3</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="font-semibold">Test Integrity</p>
+                                <p class="text-sm text-gray-600">Desktop environment provides better security features to prevent cheating.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                    <span class="text-blue-600 font-bold">4</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="font-semibold">Consistent Experience</p>
+                                <p class="text-sm text-gray-600">All candidates take the test under the same conditions for fairness.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="bg-blue-50 rounded-lg p-6 mb-6">
+                    <h3 class="text-xl font-bold text-blue-900 mb-3 flex items-center">
+                        <svg class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        What To Do Next
+                    </h3>
+                    <ol class="space-y-2 text-blue-800">
+                        <li class="flex items-start">
+                            <span class="font-bold mr-2">1.</span>
+                            <span>Access this test from a desktop or laptop computer</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="font-bold mr-2">2.</span>
+                            <span>Use a modern browser (Chrome, Firefox, Edge, or Safari)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="font-bold mr-2">3.</span>
+                            <span>Ensure you have a working webcam</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="font-bold mr-2">4.</span>
+                            <span>Find a quiet, well-lit environment</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="font-bold mr-2">5.</span>
+                            <span>Return to the dashboard and start your test</span>
+                        </li>
+                    </ol>
+                </div>
+                
+                <!-- System Requirements -->
+                <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">📋 System Requirements</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+                        <div>
+                            <p class="font-semibold text-gray-800 mb-1">✅ Supported Devices:</p>
+                            <ul class="list-disc list-inside space-y-1 ml-2">
+                                <li>Desktop computers</li>
+                                <li>Laptop computers</li>
+                                <li>Windows, macOS, or Linux</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-800 mb-1">❌ Not Supported:</p>
+                            <ul class="list-disc list-inside space-y-1 ml-2">
+                                <li>Smartphones</li>
+                                <li>Tablets (including iPad)</li>
+                                <li>Chromebooks (limited support)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="{% url 'dashboard' %}" 
+                       class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-center hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl">
+                        <span class="text-lg">🏠</span> Return to Dashboard
+                    </a>
+                    
+                    <a href="mailto:support@example.com" 
+                       class="flex-1 bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-semibold text-center hover:bg-gray-300 transition-all">
+                        <span class="text-lg">📧</span> Contact Support
+                    </a>
+                </div>
+                
+                <!-- Help Text -->
+                <div class="mt-6 text-center text-sm text-gray-500">
+                    <p>Need help? Contact your administrator or email <a href="mailto:support@example.com" class="text-blue-600 hover:underline">support@example.com</a></p>
+                    <p class="mt-1">Access attempt has been logged for security purposes.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Additional Info Card -->
+        <div class="mt-6 bg-white rounded-lg shadow-lg p-6 text-center">
+            <p class="text-gray-600">
+                <strong>📍 Current Device Detected:</strong> {{ device_type|title }} 
+                <span class="text-xs text-gray-500 block mt-1">User Agent: {{ request.META.HTTP_USER_AGENT|truncatechars:80 }}</span>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
