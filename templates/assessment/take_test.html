@@ -67,12 +67,16 @@
 <script>
 // Wait for all scripts to load
 window.addEventListener('load', function() {
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     console.log('=== Libraries Check ===');
-    console.log('Cornerstone loaded:', typeof cornerstone !== 'undefined');
-    console.log('CornerstoneMath loaded:', typeof cornerstoneMath !== 'undefined');
-    console.log('CornerstoneTools loaded:', typeof cornerstoneTools !== 'undefined');
-    console.log('CornerstoneWebImageLoader loaded:', typeof cornerstoneWebImageLoader !== 'undefined');
-    console.log('DICOMViewer class available:', typeof DICOMViewer !== 'undefined');
+    console.log('Cornerstone loaded:', typeof cornerstone !== 'undefined' ? '✅' : '❌');
+    console.log('CornerstoneMath loaded:', typeof cornerstoneMath !== 'undefined' ? '✅' : '❌');
+    console.log('CornerstoneTools loaded:', typeof cornerstoneTools !== 'undefined' ? '✅' : '❌');
+    console.log('CornerstoneWebImageLoader loaded:', typeof cornerstoneWebImageLoader !== 'undefined' ? '✅' : '❌');
+    console.log('DICOMViewer class available:', typeof DICOMViewer !== 'undefined' ? '✅' : '❌');
+    console.log('html2canvas:', typeof html2canvas !== 'undefined' ? '✅' : '❌');
+    
 
     // CRITICAL: Register web image loader globally
     if (typeof cornerstone !== 'undefined' && typeof cornerstoneWebImageLoader !== 'undefined') {
@@ -135,9 +139,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 loadingScreen.style.display = 'none';
             }
             
-            // Keep exam content hidden
-            // Error message is already shown by proctoring.js showPermissionError()
-            
             // Prevent any exam interaction
             if (examContent) {
                 examContent.remove();
@@ -147,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
         
         // SUCCESS: Proctoring initialized - Start exam
-        console.log('✓ EXAM STARTED: Proctoring verified');
+        console.log('✅ EXAM STARTED: Proctoring active');
         
         // Hide loading screen
         if (loadingScreen) {

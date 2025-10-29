@@ -391,7 +391,7 @@ def log_proctoring_event(request, attempt_id):
 def test_consent_form(request, test_id):
     """
     Display consent form before starting test
-    UPDATED: Log consent acceptance as proctoring event
+    FIXED: Create attempt BEFORE showing consent form so face verification has attempt_id
     """
     from .models import Test
     from django.urls import reverse
@@ -400,23 +400,24 @@ def test_consent_form(request, test_id):
     test = get_object_or_404(Test, id=test_id, is_active=True)
     
     if request.method == 'POST':
-        # User agreed to consent
+        # User submitted consent form
         consent_given = request.POST.get('consent') == 'agree'
+        face_verified = request.POST.get('face_verified') == 'true'
         
-        if consent_given:
-            # Get client IP
-            client_ip = get_client_ip(request)
-            
-            # Create test attempt with consent data
-            attempt = TestAttempt.objects.create(
-                user=request.user,
-                test=test,
-                consent_given=True,
-                consent_timestamp=timezone.now(),
-                ip_address=client_ip,
-                user_agent=request.META.get('HTTP_USER_AGENT', ''),
-                status='in_progress'
-            )
+        # Get the attempt that was created on GET
+        attempt_id = request.POST.get('attempt_id')
+        if not attempt_id:
+            messages.error(request, 'Invalid attempt. Please try again.')
+            return redirect('test_detail', test_id=test.id)
+        
+        attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
+        
+        if consent_given and face_verified:
+            # Update attempt with consent data
+            attempt.consent_given = True
+            attempt.consent_timestamp = timezone.now()
+            attempt.status = 'in_progress'
+            attempt.save()
             
             # Log consent acceptance as proctoring event
             ProctoringEvent.objects.create(
@@ -424,9 +425,10 @@ def test_consent_form(request, test_id):
                 event_type='consent_accepted',
                 severity='info',
                 metadata={
-                    'ip_address': client_ip,
-                    'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                    'ip_address': attempt.ip_address,
+                    'user_agent': attempt.user_agent,
                     'consent_timestamp': timezone.now().isoformat(),
+                    'face_verified': True
                 }
             )
             
@@ -441,11 +443,41 @@ def test_consent_form(request, test_id):
             # Redirect to test
             return redirect(reverse('take_test', args=[attempt.id]))
         else:
-            messages.error(request, 'You must agree to the consent terms to take the test.')
+            # Delete the attempt if consent not given
+            attempt.delete()
+            messages.error(request, 'You must complete face verification and agree to the consent terms to take the test.')
             return redirect('test_detail', test_id=test.id)
     
+    # GET request - Create attempt NOW (before showing consent form)
+    # This allows face verification to have an attempt_id
+    client_ip = get_client_ip(request)
+    
+    # Check if user already has a pending attempt for this test
+    existing_attempt = TestAttempt.objects.filter(
+        user=request.user,
+        test=test,
+        consent_given=False,
+        status='started'
+    ).first()
+    
+    if existing_attempt:
+        # Reuse existing pending attempt
+        attempt = existing_attempt
+    else:
+        # Create new pending attempt
+        attempt = TestAttempt.objects.create(
+            user=request.user,
+            test=test,
+            consent_given=False,
+            consent_timestamp=None,
+            ip_address=client_ip,
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            status='started'  # Will change to 'in_progress' after consent
+        )
+    
     return render(request, 'assessment/consent_form.html', {
-        'test': test
+        'test': test,
+        'attempt': attempt  # NOW PASSED TO TEMPLATE!
     })
 
 

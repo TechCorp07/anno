@@ -1,18 +1,23 @@
+<!-- templates/assessment/consent_form.html -->
 {% extends "base.html" %}
 {% load static %}
 
 {% block title %}Test Consent - {{ test.title }}{% endblock %}
 
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
     <div class="max-w-4xl mx-auto">
-        
-        <!-- Header -->
+
+        <!-- Header Card -->
         <div class="bg-white rounded-t-2xl shadow-xl p-8 border-b-4 border-blue-500">
             <h1 class="text-4xl font-bold text-gray-800 mb-2">{{ test.title }}</h1>
-            <p class="text-gray-600 text-lg">Before you begin, please complete identity verification</p>
+            <p class="text-gray-600 text-lg">Before you begin, please review and accept the test conditions</p>
         </div>
-        
+
         <!-- Main Content -->
         <div class="bg-white shadow-xl p-8">
             
@@ -20,286 +25,376 @@
             <div id="step1-face-verification" class="mb-8">
                 <div class="flex items-center mb-4">
                     <div class="h-10 w-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold mr-3">1</div>
-                    <h2 class="text-2xl font-bold text-gray-800">Face Verification Required</h2>
+                    <h2 class="text-2xl font-bold text-gray-800">Face Verification</h2>
                 </div>
-                
+
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6 rounded-lg">
-                    <p class="text-blue-900 font-semibold mb-2">📷 Identity verification required</p>
-                    <p class="text-blue-800 text-sm">Ensure good lighting and face the camera directly.</p>
+                    <p class="text-blue-900 font-semibold mb-2">📷 We need to verify your identity before starting</p>
+                    <p class="text-blue-800 text-sm">Your face must be clearly visible. Ensure good lighting and remove any obstructions.</p>
                 </div>
-                
+
                 <!-- Webcam Preview -->
-                <div class="relative mb-6 max-w-2xl mx-auto">
-                    <video id="webcam-preview" autoplay playsinline 
-                           class="w-full rounded-lg border-4 border-gray-300 bg-black"
-                           style="max-height: 480px;">
-                    </video>
+                <div class="relative mb-6">
+                    <video id="webcam-preview" autoplay playsinline class="w-full max-w-md mx-auto rounded-lg border-4 border-gray-300 bg-black"></video>
                     <canvas id="face-canvas" class="hidden"></canvas>
-                    
-                    <!-- Status -->
+
+                    <!-- Face Detection Overlay -->
                     <div id="face-status" class="absolute top-4 left-4 right-4 text-center">
-                        <div class="bg-yellow-500 text-white px-4 py-2 rounded-lg inline-block font-semibold">
-                            <span class="animate-pulse">🔍 Initializing...</span>
+                        <div id="face-detecting" class="bg-yellow-500 text-white px-4 py-2 rounded-lg inline-block font-semibold">
+                            <span class="animate-pulse">🔍 Detecting face...</span>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Instructions -->
-                <div class="grid grid-cols-3 gap-4 mb-6">
-                    <div class="bg-green-50 p-4 rounded-lg text-center">
+
+                <!-- Face Verification Instructions -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-green-50 p-4 rounded-lg text-center border-2 border-green-200">
                         <div class="text-3xl mb-2">💡</div>
                         <p class="font-semibold text-green-800">Good Lighting</p>
+                        <p class="text-sm text-green-700">Face your light source</p>
                     </div>
-                    <div class="bg-green-50 p-4 rounded-lg text-center">
+                    <div class="bg-green-50 p-4 rounded-lg text-center border-2 border-green-200">
                         <div class="text-3xl mb-2">😊</div>
                         <p class="font-semibold text-green-800">Face Forward</p>
+                        <p class="text-sm text-green-700">Look at the camera</p>
                     </div>
-                    <div class="bg-green-50 p-4 rounded-lg text-center">
+                    <div class="bg-green-50 p-4 rounded-lg text-center border-2 border-green-200">
                         <div class="text-3xl mb-2">🚫</div>
-                        <p class="font-semibold text-green-800">No Obstructions</p>
+                        <p class="font-semibold text-green-800">Remove Obstructions</p>
+                        <p class="text-sm text-green-700">No masks or sunglasses</p>
                     </div>
                 </div>
-                
+
                 <button id="verify-face-btn" 
-                        class="w-full bg-blue-500 text-white px-6 py-4 rounded-lg font-bold text-lg hover:bg-blue-600 transition disabled:bg-gray-300"
+                        class="w-full bg-blue-500 text-white px-6 py-4 rounded-lg font-bold text-lg hover:bg-blue-600 transition-all shadow-lg hover:shadow-xl disabled:bg-gray-300 disabled:cursor-not-allowed"
                         disabled>
-                    <span id="verify-btn-text">🔄 Initializing...</span>
-                </button>
-                
-                <!-- Debug Console -->
-                <div id="debug-console" class="mt-4 p-4 bg-gray-900 text-green-400 rounded-lg text-xs font-mono hidden" style="max-height: 200px; overflow-y: auto;">
-                    <div class="font-bold mb-2">🐛 Debug Console:</div>
-                    <div id="debug-log"></div>
-                </div>
-                
-                <button onclick="document.getElementById('debug-console').classList.toggle('hidden')" 
-                        class="mt-2 text-sm text-gray-500 hover:text-gray-700">
-                    Toggle Debug Console
+                    <span id="verify-btn-text">🔄 Initializing Camera...</span>
                 </button>
             </div>
-            
-            <!-- STEP 2: Consent (Hidden initially) -->
+
+            <!-- STEP 2: Proctoring Consent (Hidden until face verified) -->
             <div id="step2-consent" class="mb-8 hidden">
                 <div class="flex items-center mb-4">
                     <div class="h-10 w-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold mr-3">2</div>
                     <h2 class="text-2xl font-bold text-gray-800">Proctoring Consent</h2>
                 </div>
-                
+
                 <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-lg">
-                    <p class="text-green-900 font-semibold">✅ Face verified! Please review and accept terms.</p>
+                    <p class="text-green-900 font-semibold">✅ Face verified! Now please review the proctoring requirements below.</p>
                 </div>
-                
-                <!-- Proctoring Info -->
-                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6 mb-6 rounded-lg">
-                    <h3 class="text-lg font-bold text-yellow-900 mb-3">⚠️ This test is proctored</h3>
-                    <div class="space-y-2 text-yellow-900">
-                        <p>📷 Webcam monitoring</p>
-                        <p>🖥️ Screen recording</p>
-                        <p>🔍 Browser monitoring</p>
-                        <p>🌐 IP address logging</p>
+
+                <!-- Proctoring Requirements -->
+                <div class="space-y-6 mb-6">
+                    
+                    <!-- Camera Monitoring -->
+                    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-6 rounded-lg">
+                        <h3 class="text-lg font-bold text-yellow-900 mb-3 flex items-center">
+                            ⚠️ 1. Camera Monitoring (REQUIRED)
+                        </h3>
+                        <p class="text-yellow-900 mb-3">
+                            Your camera must remain on throughout the entire exam. The system will:
+                        </p>
+                        <ul class="list-disc list-inside space-y-2 text-yellow-800 ml-4">
+                            <li>Capture periodic snapshots (every 2-5 minutes)</li>
+                            <li>Continuously monitor that your camera stays enabled</li>
+                            <li>Alert and log if camera is turned off during exam</li>
+                            <li>Store images securely for 30 days, then auto-delete</li>
+                        </ul>
+                        <div class="mt-4 bg-red-100 border border-red-400 rounded p-3">
+                            <p class="text-red-900 font-bold">⚠️ WARNING: Turning off your camera during the exam will result in disqualification!</p>
+                        </div>
+                    </div>
+
+                    <!-- Screen Capture -->
+                    <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg">
+                        <h3 class="text-lg font-bold text-blue-900 mb-3">
+                            🖥️ 2. Screen Capture
+                        </h3>
+                        <p class="text-blue-800">
+                            Periodic screenshots of your screen will be captured to ensure test integrity. Screenshots are taken at the same intervals as camera snapshots.
+                        </p>
+                    </div>
+
+                    <!-- Browser Restrictions -->
+                    <div class="bg-purple-50 border-l-4 border-purple-500 p-6 rounded-lg">
+                        <h3 class="text-lg font-bold text-purple-900 mb-3">
+                            🔒 3. Browser Restrictions
+                        </h3>
+                        <p class="text-purple-900 mb-3">During the test:</p>
+                        <ul class="list-disc list-inside space-y-2 text-purple-800 ml-4">
+                            <li>Fullscreen mode is required</li>
+                            <li>Tab switching is not allowed</li>
+                            <li>Right-click and keyboard shortcuts are disabled</li>
+                            <li>Copy/paste is disabled</li>
+                            <li>Developer tools are blocked</li>
+                        </ul>
+                    </div>
+
+                    <!-- IP Tracking -->
+                    <div class="bg-indigo-50 border-l-4 border-indigo-500 p-6 rounded-lg">
+                        <h3 class="text-lg font-bold text-indigo-900 mb-3">
+                            🌐 4. IP Address Tracking
+                        </h3>
+                        <p class="text-indigo-800">
+                            Your IP address will be logged to detect multiple device usage.
+                        </p>
+                    </div>
+
+                    <!-- Plagiarism Detection -->
+                    <div class="bg-pink-50 border-l-4 border-pink-500 p-6 rounded-lg">
+                        <h3 class="text-lg font-bold text-pink-900 mb-3">
+                            🔍 5. Plagiarism Detection
+                        </h3>
+                        <p class="text-pink-800">
+                            Your answers will be compared with other test attempts to detect similarities (≥70% threshold).
+                        </p>
                     </div>
                 </div>
-                
-                <!-- Rules -->
-                <div class="bg-red-50 border-l-4 border-red-500 p-6 mb-6 rounded-lg">
-                    <h3 class="text-lg font-bold text-red-900 mb-3">🚨 Test Rules</h3>
-                    <ul class="space-y-1 text-red-800 text-sm">
-                        <li>❌ No tab switching</li>
-                        <li>❌ No external help</li>
-                        <li>❌ Keep camera on</li>
-                        <li>❌ Stay in fullscreen</li>
-                        <li>❌ No copy/paste</li>
+
+                <!-- Important Notes -->
+                <div class="bg-gray-100 border-2 border-gray-300 p-6 rounded-lg mb-6">
+                    <h3 class="text-lg font-bold text-gray-900 mb-3">📋 Important Notes</h3>
+                    <ul class="space-y-2 text-gray-800">
+                        <li class="flex items-start">
+                            <span class="mr-2 font-bold">•</span>
+                            <span><strong>Camera MUST stay on</strong> - Do not disable or cover your camera</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 font-bold">•</span>
+                            <span>Use a quiet, well-lit environment</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 font-bold">•</span>
+                            <span>Ensure your face is clearly visible to the camera</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 font-bold">•</span>
+                            <span>Do not leave the test page once started</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 font-bold">•</span>
+                            <span>Violations may result in immediate test disqualification</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2 font-bold">•</span>
+                            <span>All proctoring data is automatically deleted after 30 days</span>
+                        </li>
                     </ul>
+                </div>
+
+                <!-- Disqualification Conditions -->
+                <div class="bg-red-50 border-l-4 border-red-500 p-6 mb-6 rounded-lg">
+                    <h3 class="text-lg font-bold text-red-900 mb-3 flex items-center">
+                        ⚠️ Exam Disqualification Conditions
+                    </h3>
+                    <ul class="space-y-2 text-red-800">
+                        <li class="flex items-start">
+                            <span class="mr-2">❌</span>
+                            <span>Turning off camera during the exam</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2">❌</span>
+                            <span>Covering the camera or blocking the view</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2">❌</span>
+                            <span>Tab switching</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2">❌</span>
+                            <span>Leaving fullscreen mode repeatedly</span>
+                        </li>
+                        <li class="flex items-start">
+                            <span class="mr-2">❌</span>
+                            <span>Using external resources or assistance</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Test Information -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                        <h4 class="font-bold text-gray-800 mb-2">⏱️ Test Duration</h4>
+                        <p class="text-2xl font-bold text-blue-600">{{ test.time_limit_minutes }} minutes</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-lg border-2 border-gray-200">
+                        <h4 class="font-bold text-gray-800 mb-2">📝 Total Questions</h4>
+                        <p class="text-2xl font-bold text-blue-600">{{ test.total_questions }} questions</p>
+                    </div>
                 </div>
                 
                 <!-- Consent Form -->
-                <form method="post" id="consent-form" action="{% url 'start_test' test.id %}">
+                <form method="post" id="consent-form">
                     {% csrf_token %}
-                    <div class="bg-gray-50 p-6 rounded-lg border-2 mb-6">
+                    <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+                    <input type="hidden" id="face_verified" name="face_verified" value="false">
+                    
+                    <div class="bg-gray-50 p-6 rounded-lg border-2 border-gray-300 mb-6">
                         <label class="flex items-start cursor-pointer">
                             <input type="checkbox" name="consent" value="agree" 
-                                   class="mt-1 h-5 w-5" required>
+                                   class="mt-1 h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                   required>
                             <span class="ml-3 text-gray-800">
-                                I agree to webcam monitoring, screen recording, and browser tracking during this test. I understand violations may result in disqualification.
+                                <strong>I agree to the proctoring terms above.</strong> I understand that:
+                                <ul class="mt-2 space-y-1 text-sm">
+                                    <li>• My camera must remain on throughout the exam</li>
+                                    <li>• Camera snapshots and screenshots will be captured</li>
+                                    <li>• Disabling my camera will result in disqualification</li>
+                                    <li>• All monitoring data will be deleted after 30 days</li>
+                                </ul>
                             </span>
                         </label>
                     </div>
-                    
-                    <input type="hidden" name="face_verified" id="face_verified" value="false">
-                    
+
                     <div class="flex gap-4">
                         <a href="{% url 'dashboard' %}" 
-                           class="flex-1 bg-gray-300 text-gray-800 px-6 py-4 rounded-lg font-bold text-lg text-center hover:bg-gray-400">
+                           class="flex-1 bg-gray-300 text-gray-800 px-6 py-4 rounded-lg font-bold text-lg text-center hover:bg-gray-400 transition-all">
                             ← Cancel
                         </a>
                         <button type="submit" 
-                                class="flex-1 bg-green-600 text-white px-6 py-4 rounded-lg font-bold text-lg hover:bg-green-700">
+                                class="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4 rounded-lg font-bold text-lg hover:from-green-600 hover:to-green-700 transition-all shadow-lg hover:shadow-xl">
                             I Agree - Start Test →
                         </button>
                     </div>
                 </form>
             </div>
+            
         </div>
-        
+
+        <!-- Footer -->
         <div class="bg-white rounded-b-2xl shadow-xl p-6 text-center text-sm text-gray-600">
-            <p>Proctored examination - your session will be recorded</p>
+            <p>By proceeding, you acknowledge that this is a proctored examination and your testing session will be recorded.</p>
+            <p class="mt-2">Need help? Contact <a href="mailto:support@example.com" class="text-blue-600 hover:underline">support@example.com</a></p>
         </div>
     </div>
 </div>
 
 <script>
+// Face Verification System
 (function() {
-    'use strict';
-    
-    // Debug logging
-    function debug(msg) {
-        console.log('[FACE-VERIFY]', msg);
-        const log = document.getElementById('debug-log');
-        if (log) {
-            const entry = document.createElement('div');
-            entry.textContent = new Date().toLocaleTimeString() + ' - ' + msg;
-            log.appendChild(entry);
-            log.scrollTop = log.scrollHeight;
-        }
-    }
-    
-    debug('Script initialized');
-    
     let videoStream = null;
     let faceVerified = false;
-    
+
     const video = document.getElementById('webcam-preview');
     const verifyBtn = document.getElementById('verify-face-btn');
     const canvas = document.getElementById('face-canvas');
     const ctx = canvas.getContext('2d');
-    
-    // Status display
-    function showStatus(msg, type = 'info') {
-        const statusDiv = document.getElementById('face-status');
-        const colors = {
-            info: 'bg-blue-500',
-            success: 'bg-green-500',
-            error: 'bg-red-500',
-            warning: 'bg-yellow-500'
-        };
-        const icons = {
-            info: 'ℹ️',
-            success: '✅',
-            error: '❌',
-            warning: '⚠️'
-        };
-        
-        statusDiv.innerHTML = `
-            <div class="${colors[type]} text-white px-4 py-2 rounded-lg inline-block font-semibold">
-                ${icons[type]} ${msg}
-            </div>
-        `;
-        debug('Status: ' + msg);
-    }
-    
-    // Initialize camera
+
+    // Initialize webcam
     async function initCamera() {
-        debug('Requesting camera access...');
-        showStatus('Requesting camera...', 'info');
-        
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { width: 640, height: 480 },
                 audio: false
             });
-            
+
             videoStream = stream;
             video.srcObject = stream;
-            
-            debug('Camera access granted');
-            showStatus('Camera ready! Click to verify', 'success');
-            
+
+            // Update button
             verifyBtn.disabled = false;
             verifyBtn.querySelector('#verify-btn-text').textContent = '📸 Verify My Face';
+
+            // Hide detecting message
+            document.getElementById('face-detecting').classList.add('hidden');
             
         } catch (error) {
-            debug('Camera error: ' + error.message);
-            showStatus('Camera denied: ' + error.message, 'error');
-            verifyBtn.querySelector('#verify-btn-text').textContent = '❌ No Camera';
+            console.error('Camera error:', error);
+            showFaceError('Camera access denied. Please enable camera permissions.');
+            verifyBtn.querySelector('#verify-btn-text').textContent = '❌ Camera Not Available';
         }
     }
-    
-    // Verify face (TEMPORARY - skips backend)
-    async function verifyFace() {
+
+    // Capture and verify face
+    verifyBtn.addEventListener('click', async function() {
         if (faceVerified) return;
-        
-        debug('Starting verification...');
+
         verifyBtn.disabled = true;
         verifyBtn.querySelector('#verify-btn-text').innerHTML = '<span class="animate-pulse">🔄 Verifying...</span>';
-        showStatus('Verifying...', 'info');
-        
+
         try {
-            // Capture frame
-            debug('Capturing frame...');
+            // Capture frame from video
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0);
-            
+
+            // Convert to blob
             const blob = await new Promise(resolve => {
                 canvas.toBlob(resolve, 'image/jpeg', 0.8);
             });
-            debug('Captured ' + blob.size + ' bytes');
+
+            // Send to server for verification
+            const formData = new FormData();
+            formData.append('face_snapshot', blob, 'face_verification.jpg');
             
-            // TEMPORARY: Auto-pass for testing
-            debug('⚠️ TEMPORARY: Auto-passing verification for testing');
-            setTimeout(() => {
+            // Verify face using attempt_id from the view
+            const response = await fetch('{% url "verify_face" attempt_id=attempt.id %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Face verified!
                 faceVerified = true;
                 document.getElementById('face_verified').value = 'true';
-                
-                debug('Verification successful!');
-                showStatus('Face Verified!', 'success');
-                verifyBtn.querySelector('#verify-btn-text').textContent = '✅ Verified!';
-                verifyBtn.classList.remove('bg-blue-500');
+
+                showFaceSuccess();
+                verifyBtn.querySelector('#verify-btn-text').textContent = '✅ Face Verified!';
+                verifyBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
                 verifyBtn.classList.add('bg-green-500', 'cursor-not-allowed');
-                
+
                 // Show step 2
-                debug('Showing consent form...');
-                document.getElementById('step2-consent').classList.remove('hidden');
-                document.getElementById('step2-consent').scrollIntoView({ behavior: 'smooth' });
-                
-            }, 1000);
-            
+                setTimeout(() => {
+                    document.getElementById('step2-consent').classList.remove('hidden');
+                    document.getElementById('step2-consent').scrollIntoView({ behavior: 'smooth' });
+                }, 1000);
+
+            } else {
+                // Verification failed
+                showFaceError(result.error || 'Verification failed. Please try again.');
+                verifyBtn.disabled = false;
+                verifyBtn.querySelector('#verify-btn-text').textContent = '🔄 Try Again';
+            }
+
         } catch (error) {
-            debug('ERROR: ' + error.message);
-            showStatus('Error: ' + error.message, 'error');
+            console.error('Verification error:', error);
+            showFaceError('Verification failed. Please try again.');
             verifyBtn.disabled = false;
             verifyBtn.querySelector('#verify-btn-text').textContent = '🔄 Try Again';
         }
+    });
+    
+    function showFaceSuccess() {
+        document.getElementById('face-status').innerHTML = `
+            <div class="bg-green-500 text-white px-4 py-2 rounded-lg inline-block font-semibold">
+                ✅ Face Verified Successfully!
+            </div>
+        `;
     }
-    
-    // Prevent form submission without verification
-    const form = document.getElementById('consent-form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            if (!faceVerified) {
-                e.preventDefault();
-                alert('⚠️ Please complete face verification first!');
-                debug('BLOCKED: Form submit without verification');
-                return false;
-            }
-            debug('OK: Form submit allowed');
-        });
+
+    function showFaceError(message) {
+        document.getElementById('face-status').innerHTML = `
+            <div class="bg-red-500 text-white px-4 py-2 rounded-lg inline-block font-semibold">
+                ❌ ${message}
+            </div>
+        `;
     }
-    
-    // Events
-    verifyBtn.addEventListener('click', verifyFace);
-    
-    // Start
-    debug('Initializing camera...');
+
+    // Initialize on page load
     initCamera();
-    
-    // Cleanup
+
+    // Cleanup on page unload
     window.addEventListener('beforeunload', () => {
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
-            debug('Camera stopped');
         }
     });
 })();
 </script>
+
 {% endblock %}
