@@ -231,7 +231,7 @@ def get_time_remaining(request, attempt_id):
 
 
 @login_required
-@require_http_methods(["POST"])
+@require_http_methods(["POST", "GET"])
 def submit_test(request, attempt_id):
     """
     UPDATED: Submit the entire test with support for disqualification
@@ -242,10 +242,16 @@ def submit_test(request, attempt_id):
         messages.info(request, 'This test has already been submitted.')
         return redirect('test_result', attempt_id=attempt.id)
     
-    # Check if this is a disqualification submission
-    is_disqualified = request.POST.get('disqualified') == 'true'
-    disqualification_reason = request.POST.get('disqualification_reason', '')
-    
+    if request.method == 'POST':
+        is_disqualified = request.POST.get('disqualified') == 'true'
+        disqualification_reason = request.POST.get('disqualification_reason', '')
+    else:  # GET request (fallback)
+        is_disqualified = request.GET.get('disqualified') == 'true'
+        reason_param = request.GET.get('reason', '')
+        disqualification_reason = reason_param.replace('_', ' ').title()
+        if not disqualification_reason:
+            disqualification_reason = 'Fullscreen exit violation'
+        
     # Calculate time spent
     time_spent = (timezone.now() - attempt.started_at).total_seconds()
     attempt.time_spent_seconds = int(time_spent)

@@ -951,9 +951,24 @@ class ProctoringSystem {
             this.windowFocusTime = Date.now();
         });
         
-        // NEW: Enhanced fullscreen tracking with auto-disqualification
-        document.addEventListener('fullscreenchange', async () => {
-            if (!document.fullscreenElement) {
+        const fullscreenChangeHandler = async () => {
+            // Check fullscreen state across ALL browsers
+            const isFullscreen = !!(
+                document.fullscreenElement ||
+                document.mozFullScreenElement ||
+                document.webkitFullscreenElement ||
+                document.msFullscreenElement
+            );
+            
+            console.log('🔍 Fullscreen state:', {
+                isFullscreen: isFullscreen,
+                exitCount: this.fullscreenExitCount,
+                maxExits: this.maxFullscreenExits,
+                isDisqualified: this.isDisqualified
+            });
+            
+            // Only process if exiting fullscreen and not already disqualified
+            if (!isFullscreen && !this.isDisqualified) {
                 this.fullscreenExitCount++;
                 this.fullscreenRetryAttempts = 0;
                 
@@ -971,29 +986,51 @@ class ProctoringSystem {
                     max_exits: this.maxFullscreenExits
                 });
                 
+                // Check if disqualification threshold reached
                 if (this.fullscreenExitCount >= this.maxFullscreenExits) {
+                    console.error(`❌ DISQUALIFICATION TRIGGERED: ${this.fullscreenExitCount} exits`);
                     this.isDisqualified = true;
                     
-                    alert(`⚠️ CRITICAL WARNING: Fullscreen Exit #${this.fullscreenExitCount}\n\n` +
+                    alert(`⚠️ EXAM DISQUALIFIED\n\n` +
                         `You have exited fullscreen mode ${this.fullscreenExitCount} times.\n\n` +
-                        `THIS CONSTITUTES EXAM DISQUALIFICATION!\n\n` +
-                        `Your exam will be automatically submitted with a score of 0%.\n\n` +
+                        `The maximum allowed is ${this.maxFullscreenExits} exits.\n\n` +
+                        `Your exam will now be submitted with a score of 0%.\n\n` +
                         `This incident has been logged.`);
                     
+                    // Disable all interactions immediately
+                    document.body.style.pointerEvents = 'none';
+                    document.body.style.opacity = '0.5';
+                    
+                    // Force submission
                     await this.autoSubmitTestDisqualified();
                     
                 } else {
+                    const remaining = this.maxFullscreenExits - this.fullscreenExitCount;
                     alert(`⚠️ WARNING: Fullscreen Exit #${this.fullscreenExitCount}/${this.maxFullscreenExits}\n\n` +
                         `Exiting fullscreen mode is not allowed during the exam.\n\n` +
-                        `After ${this.maxFullscreenExits} exits, you will be DISQUALIFIED and your exam will be submitted with 0%.\n\n` +
-                        `This incident has been logged.\n\n` +
+                        `You have ${remaining} warning(s) remaining.\n\n` +
+                        `After ${this.maxFullscreenExits} exits, you will be DISQUALIFIED.\n\n` +
                         `The exam will now return to fullscreen mode.`);
                     
                     await this.restoreFullscreenWithRetry();
                 }
             }
+        };
+
+        // Register event listeners for ALL browser types (CRITICAL FIX)
+        const fullscreenEvents = [
+            'fullscreenchange',        // Chrome, Edge, Opera
+            'mozfullscreenchange',     // Firefox
+            'webkitfullscreenchange',  // Safari
+            'MSFullscreenChange'       // IE11
+        ];
+
+        console.log('📋 Registering fullscreen event listeners for all browsers...');
+        fullscreenEvents.forEach(eventName => {
+            document.addEventListener(eventName, fullscreenChangeHandler.bind(this));
+            console.log(`✓ Registered: ${eventName}`);
         });
-        
+
         console.log('✓ Enhanced event tracking enabled');
     }
     
@@ -1051,11 +1088,12 @@ class ProctoringSystem {
     }
     
     /**
-     * NEW: Auto-submit test when disqualified
+     * Auto-submit test when disqualified with multiple fallbacks
      */
     async autoSubmitTestDisqualified() {
         console.log('🚫 Auto-submitting test due to disqualification...');
         
+        // Log the disqualification event
         await this.logEvent('exam_disqualified', {
             severity: 'critical',
             reason: 'excessive_fullscreen_exits',
@@ -1065,34 +1103,52 @@ class ProctoringSystem {
         
         await this.sleep(1000);
         
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = `/attempt/${this.attemptId}/submit/`;
-        
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrfmiddlewaretoken';
-        csrfInput.value = this.csrfToken;
-        form.appendChild(csrfInput);
-        
-        const disqualifiedInput = document.createElement('input');
-        disqualifiedInput.type = 'hidden';
-        disqualifiedInput.name = 'disqualified';
-        disqualifiedInput.value = 'true';
-        form.appendChild(disqualifiedInput);
-        
-        const reasonInput = document.createElement('input');
-        reasonInput.type = 'hidden';
-        reasonInput.name = 'disqualification_reason';
-        reasonInput.value = `Excessive fullscreen exits (${this.fullscreenExitCount} times)`;
-        form.appendChild(reasonInput);
-        
-        document.body.appendChild(form);
-        form.submit();
+        // Method 1: Try POST form submission
+        try {
+            console.log('📝 Attempting POST form submission...');
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/attempt/${this.attemptId}/submit/`;
+            
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = this.csrfToken;
+            form.appendChild(csrfInput);
+            
+            const disqualifiedInput = document.createElement('input');
+            disqualifiedInput.type = 'hidden';
+            disqualifiedInput.name = 'disqualified';
+            disqualifiedInput.value = 'true';
+            form.appendChild(disqualifiedInput);
+            
+            const reasonInput = document.createElement('input');
+            reasonInput.type = 'hidden';
+            reasonInput.name = 'disqualification_reason';
+            reasonInput.value = `Excessive fullscreen exits (${this.fullscreenExitCount} times)`;
+            form.appendChild(reasonInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+            
+            // Safety timeout: if page doesn't redirect, force it
+            setTimeout(() => {
+                console.warn('⚠️ Form submission timeout - using fallback');
+                window.location.href = `/attempt/${this.attemptId}/submit/?disqualified=true&reason=fullscreen_exits_${this.fullscreenExitCount}`;
+            }, 3000);
+            
+        } catch (error) {
+            console.error('❌ POST form submission failed:', error);
+            
+            // Method 2: Fallback to GET navigation
+            console.log('🔄 Using fallback: GET navigation');
+            window.location.href = `/attempt/${this.attemptId}/submit/?disqualified=true&reason=fullscreen_exits_${this.fullscreenExitCount}`;
+        }
     }
     
     /**
-     * NEW: Setup comprehensive text selection and copy/paste blocking
+     * Setup comprehensive text selection and copy/paste blocking
      */
     setupSelectionBlocking() {
         console.log('🔒 Setting up comprehensive text selection blocking...');
