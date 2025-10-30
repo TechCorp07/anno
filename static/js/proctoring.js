@@ -17,15 +17,24 @@ class ProctoringSystem {
         this.fullscreenExitCount = 0;
         this.maxFullscreenExits = 3;
         
+        // NEW: Fullscreen restoration
+        this.fullscreenRetryAttempts = 0;
+        this.maxFullscreenRetries = 5;
+        this.isDisqualified = false;
+        
         // Fullscreen
         this.isFullscreen = false;
         
-        this.captureOnEvents = true;  // Enable/disable event-triggered screenshots
-        this.eventScreenshotDelay = 100;  // Milliseconds to wait before capture
-        this.lastEventScreenshotTime = 0;  // Prevent duplicate screenshots
-        this.eventScreenshotCooldown = 2000;  // Min 2 seconds between event screenshots
+        // Event screenshots
+        this.captureOnEvents = true;
+        this.eventScreenshotDelay = 100;
+        this.lastEventScreenshotTime = 0;
+        this.eventScreenshotCooldown = 2000;
         
-        // Window focus tracking (NEW)
+        // NEW: Individual event tracking for cooldown
+        this.lastEventScreenshot = {};
+        
+        // Window focus tracking
         this.windowHasFocus = true;
         this.windowBlurTime = null;
         this.windowFocusTime = null;
@@ -35,6 +44,14 @@ class ProctoringSystem {
         this.screenshotCapable = false;
         this.adBlockerDetected = false;
         this.uploadEndpointBlocked = false;
+        this.devToolsDetected = false;
+        this.devToolsWarningShown = false;
+        
+        // NEW: Copy/paste tracking
+        this.copyAttempts = 0;
+        this.pasteAttempts = 0;
+        this.selectAllAttempts = 0;
+        this.selectionAttempts = 0;
         
         // URLs
         this.snapshotUploadUrl = `/proctoring/snapshot/${attemptId}/`;
@@ -70,7 +87,6 @@ class ProctoringSystem {
         }
         
         try {
-            // Try to capture a tiny test screenshot
             const testDiv = document.createElement('div');
             testDiv.style.width = '10px';
             testDiv.style.height = '10px';
@@ -104,7 +120,7 @@ class ProctoringSystem {
         }
     }
 
-     /**
+    /**
      * Detect ad blockers using multiple methods
      */
     async detectAdBlocker() {
@@ -112,7 +128,6 @@ class ProctoringSystem {
         
         let detected = false;
         
-        // Method 1: Try to load a fake ad script
         try {
             const testScript = document.createElement('script');
             testScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
@@ -122,15 +137,12 @@ class ProctoringSystem {
             };
             document.head.appendChild(testScript);
             
-            // Wait a bit
             await new Promise(resolve => setTimeout(resolve, 100));
-            
             document.head.removeChild(testScript);
         } catch (error) {
-            // Ignore errors
+            // Ignore
         }
         
-        // Method 2: Check for common ad blocker properties
         if (window.canRunAds === false || 
             window.isAdBlockActive === true ||
             document.getElementById('ad-blocker-detected')) {
@@ -138,7 +150,6 @@ class ProctoringSystem {
             console.warn('⚠️ Ad blocker detected (Method 2)');
         }
         
-        // Method 3: Check if fetch is being intercepted
         const originalFetch = window.fetch;
         if (originalFetch.toString().includes('native') === false) {
             detected = true;
@@ -158,14 +169,12 @@ class ProctoringSystem {
     
     /**
      * Detect if developer tools are already open
-     * Uses timing and window size detection methods
      */
     async detectDevTools() {
         console.log('🔍 Checking if developer tools are open...');
         
         let devToolsOpen = false;
         
-        // Method 1: Check window dimensions (devtools takes up space)
         const widthThreshold = window.outerWidth - window.innerWidth > 160;
         const heightThreshold = window.outerHeight - window.innerHeight > 160;
         
@@ -174,25 +183,21 @@ class ProctoringSystem {
             console.warn('⚠️ Developer tools detected (Method 1: Window size)');
         }
         
-        // Method 2: debugger statement timing check
         const startTime = performance.now();
         // eslint-disable-next-line no-debugger
         debugger;
         const endTime = performance.now();
         
-        // If debugger takes more than 100ms, devtools is likely open
         if (endTime - startTime > 100) {
             devToolsOpen = true;
             console.warn('⚠️ Developer tools detected (Method 2: Debugger timing)');
         }
         
-        // Method 3: Firebug check
         if (window.Firebug && window.Firebug.chrome && window.Firebug.chrome.isInitialized) {
             devToolsOpen = true;
             console.warn('⚠️ Developer tools detected (Method 3: Firebug)');
         }
         
-        // Method 4: Console detection
         let consoleOpen = false;
         const element = new Image();
         Object.defineProperty(element, 'id', {
@@ -225,7 +230,6 @@ class ProctoringSystem {
         console.log('🔍 Testing upload endpoint...');
         
         try {
-            // Send a tiny test request
             const formData = new FormData();
             formData.append('test', 'connection');
             formData.append('csrfmiddlewaretoken', this.csrfToken);
@@ -235,7 +239,6 @@ class ProctoringSystem {
                 body: formData,
             });
             
-            // We expect 400 (no snapshot) but NOT network error
             if (response.status === 0 || response.type === 'error') {
                 this.uploadEndpointBlocked = true;
                 console.error('❌ Upload endpoint BLOCKED');
@@ -247,14 +250,12 @@ class ProctoringSystem {
             return true;
             
         } catch (error) {
-            // Network error = blocked
             if (error.name === 'TypeError' || error.message.includes('network')) {
                 this.uploadEndpointBlocked = true;
                 console.error('❌ Upload endpoint BLOCKED:', error.message);
                 return false;
             }
             
-            // Other errors are OK (like 400)
             console.log('✅ Upload endpoint accessible (with error response)');
             return true;
         }
@@ -274,26 +275,20 @@ class ProctoringSystem {
             devTools: false
         };
         
-        // Check 1: html2canvas loaded
         checks.html2canvas = this.verifyHtml2Canvas();
         
-        // Check 2: Screenshot capability (only if html2canvas available)
         if (checks.html2canvas) {
             checks.screenshotTest = await this.testScreenshotCapability();
         }
         
-        // Check 3: Ad blocker detection
         const adBlockerDetected = await this.detectAdBlocker();
-        checks.adBlocker = !adBlockerDetected; // Invert: true = good (no blocker)
+        checks.adBlocker = !adBlockerDetected;
         
-        // Check 4: Upload endpoint
         checks.uploadEndpoint = await this.testUploadEndpoint();
 
-        // Check 5: Developer tools detection
         const devToolsOpen = await this.detectDevTools();
         checks.devTools = !devToolsOpen;
         
-        // Log results
         console.log('=== CHECK RESULTS ===');
         console.log('html2canvas:', checks.html2canvas ? '✅' : '❌');
         console.log('Screenshot capability:', checks.screenshotTest ? '✅' : '❌');
@@ -301,7 +296,6 @@ class ProctoringSystem {
         console.log('Upload endpoint:', checks.uploadEndpoint ? '✅' : '❌');
         console.log('No developer tools:', checks.devTools ? '✅' : '❌');
         
-        // Log to backend
         await this.logEvent('system_check_completed', {
             severity: 'info',
             checks: checks,
@@ -312,7 +306,6 @@ class ProctoringSystem {
             dev_tools_detected: !checks.devTools
         });
         
-        // Critical failures
         const criticalFailures = [];
         
         if (!checks.html2canvas) {
@@ -331,12 +324,10 @@ class ProctoringSystem {
             criticalFailures.push('Developer tools are open - must be closed to start exam');
         }
         
-        // Show warnings for non-critical issues
         if (!checks.adBlocker) {
             this.showAdBlockerWarning();
         }
         
-        // Block exam if critical failures
         if (criticalFailures.length > 0) {
             this.showSystemCheckError(criticalFailures);
             return false;
@@ -366,7 +357,7 @@ class ProctoringSystem {
         `;
         
         warningDiv.innerHTML = `
-            <div style="display: flex; align-items-start;">
+            <div style="display: flex; align-items: start;">
                 <div style="font-size: 32px; margin-right: 12px;">⚠️</div>
                 <div>
                     <h3 style="font-weight: bold; margin-bottom: 8px; color: #92400e;">
@@ -388,7 +379,6 @@ class ProctoringSystem {
         
         document.body.appendChild(warningDiv);
         
-        // Log warning accepted after 30 seconds
         setTimeout(() => {
             if (document.getElementById('adblocker-warning')) {
                 this.logEvent('adblocker_warning_shown', {
@@ -480,7 +470,6 @@ class ProctoringSystem {
             </div>
         `;
         
-        // Add dark overlay
         const overlay = document.createElement('div');
         overlay.style.cssText = `
             position: fixed;
@@ -495,7 +484,6 @@ class ProctoringSystem {
         document.body.appendChild(overlay);
         document.body.appendChild(errorDiv);
         
-        // Log to backend
         this.logEvent('system_check_failed', {
             severity: 'critical',
             failures: failures,
@@ -505,11 +493,9 @@ class ProctoringSystem {
 
     /**
      * Initialize all proctoring features
-     * CRITICAL: Returns false if camera permission denied - exam should NOT start
      */
     async initialize() {
         try {
-
             console.log('🔍 Running system checks before initialization...');
             const systemOK = await this.performSystemChecks();
             
@@ -520,7 +506,6 @@ class ProctoringSystem {
             
             console.log('✅ System checks passed - proceeding with initialization');
 
-            // 1. Request webcam access (CAMERA ONLY - NO MICROPHONE)
             const permissionsGranted = await this.requestCameraAccess();
             
             if (!permissionsGranted) {
@@ -531,28 +516,19 @@ class ProctoringSystem {
             
             this.permissionsGranted = true;
             
-            //1.1 continuous devtools monitoring
             this.startDevToolsMonitoring();
-
-            // 2. Start continuous camera monitoring
             this.startCameraMonitoring();
-            
-            // 3. Setup browser lockdown (with screenshot capture on violations)
             this.setupBrowserLockdown();
-            
-            // 4. Setup enhanced event tracking (NEW - with away time tracking)
             this.setupEnhancedEventTracking();
             
-            // 5. Force fullscreen
-            this.enterFullscreen();
+            // NEW: Setup text selection blocking
+            this.setupSelectionBlocking();
             
-            // 6. Start snapshot timer
+            this.enterFullscreen();
             this.startSnapshotTimer();
             
-            // 7. Log IP address
             await this.logIPAddress();
             
-            // 8. Log successful initialization
             await this.logEvent('proctoring_initialized', {
                 severity: 'info',
                 snapshot_interval: this.snapshotIntervalSeconds,
@@ -568,11 +544,21 @@ class ProctoringSystem {
                     'periodic_screenshots',
                     'event_triggered_screenshots',
                     'away_time_tracking',
-                    'system_verification'
+                    'system_verification',
+                    'copy_paste_blocking',
+                    'text_selection_blocking',
+                    'auto_disqualification'
                 ]
             });
             
-            console.log('✅ Enhanced proctoring system initialized successfully');
+            console.log('✅ Complete proctoring system initialized successfully');
+            console.log('   ✓ Camera monitoring active');
+            console.log('   ✓ Fullscreen enforcement active');
+            console.log('   ✓ Browser lockdown active');
+            console.log('   ✓ Text selection blocking active');
+            console.log('   ✓ Copy/paste blocking active');
+            console.log('   ✓ Auto-disqualification active');
+            
             return true;
         } catch (error) {
             console.error('✗ Proctoring initialization failed:', error);
@@ -583,23 +569,19 @@ class ProctoringSystem {
     
     /**
      * Request camera access only (NO MICROPHONE)
-     * REQUIRED for exam to start
      */
     async requestCameraAccess() {
         try {
-            // Request video only - no audio
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 640 },
                     height: { ideal: 480 }
                 },
-                audio: false  // NO MICROPHONE REQUIRED
+                audio: false
             });
             
-            // Store video stream
             this.videoStream = stream;
             
-            // Verify video track is present and active
             const videoTrack = stream.getVideoTracks()[0];
             if (!videoTrack || !videoTrack.enabled) {
                 console.error('Camera not available or disabled');
@@ -609,7 +591,6 @@ class ProctoringSystem {
                 return false;
             }
             
-            // Log camera access granted
             await this.logEvent('camera_access_granted', {
                 severity: 'info',
                 video_width: videoTrack.getSettings().width,
@@ -622,7 +603,6 @@ class ProctoringSystem {
         } catch (error) {
             console.error('✗ Camera access denied:', error);
             
-            // Log specific error types
             if (error.name === 'NotAllowedError') {
                 console.error('User denied camera permission');
             } else if (error.name === 'NotFoundError') {
@@ -631,7 +611,6 @@ class ProctoringSystem {
                 console.error('Camera is already in use');
             }
             
-            // Log permission denied
             await this.logEvent('camera_access_denied', {
                 error: error.message,
                 error_name: error.name,
@@ -652,34 +631,29 @@ class ProctoringSystem {
             if (devToolsNowOpen && !this.devToolsWarningShown) {
                 this.devToolsWarningShown = true;
                 
-                // Log critical event
                 await this.logEvent('devtools_opened_during_exam', {
                     severity: 'critical',
                     note: 'Developer tools opened DURING exam - potential cheating'
                 });
                 
-                // Capture screenshot
                 await this.captureEventScreenshot('devtools_violation', {
                     severity: 'critical',
                     note: 'DevTools opened during exam'
                 });
                 
-                // Show disqualification warning
                 alert('⚠️ CRITICAL VIOLATION: Developer Tools Detected\n\n' +
                     'Developer tools have been detected during the exam.\n\n' +
                     'THIS CONSTITUTES EXAM DISQUALIFICATION!\n\n' +
                     'Close developer tools immediately and continue.\n\n' +
                     'This incident has been logged and reported.');
             }
-        }, 5000); // Check every 5 seconds
+        }, 5000);
     }
     
     /**
-     * Continuously monitor camera stream to detect if user turns it off
-     * CRITICAL: This prevents users from disabling camera during exam
+     * Continuously monitor camera stream
      */
     startCameraMonitoring() {
-        // Check camera status every 2 seconds
         this.streamMonitorTimer = setInterval(() => {
             if (!this.videoStream) {
                 this.handleCameraDisabled();
@@ -688,29 +662,24 @@ class ProctoringSystem {
             
             const videoTrack = this.videoStream.getVideoTracks()[0];
             
-            // Check if track exists and is enabled
             if (!videoTrack) {
                 this.handleCameraDisabled();
                 return;
             }
             
-            // Check if track is still live
             if (videoTrack.readyState === 'ended') {
                 this.handleCameraDisabled();
                 return;
             }
             
-            // Check if track is enabled
             if (!videoTrack.enabled) {
                 this.handleCameraDisabled();
                 return;
             }
             
-            // Track is active and enabled - all good
             console.log('✓ Camera monitoring: Active');
-        }, 2000); // Check every 2 seconds
+        }, 2000);
         
-        // Also listen for track ended event
         const videoTrack = this.videoStream.getVideoTracks()[0];
         if (videoTrack) {
             videoTrack.addEventListener('ended', () => {
@@ -723,23 +692,20 @@ class ProctoringSystem {
     
     /**
      * Handle camera being disabled during exam
-     * CRITICAL: This prevents cheating by disabling camera
      */
     handleCameraDisabled() {
         if (this.cameraDisabledWarningShown) {
-            return; // Already shown warning
+            return;
         }
         
         this.cameraDisabledWarningShown = true;
         
-        // Log the event with CRITICAL severity
         this.logEvent('camera_disabled', {
             severity: 'critical',
             timestamp: new Date().toISOString(),
             note: 'Camera was disabled or disconnected during exam'
         });
         
-        // Show critical warning
         this.showCameraDisabledWarning();
         
         console.error('❌ CRITICAL: Camera disabled during exam');
@@ -802,7 +768,6 @@ class ProctoringSystem {
             </div>
         `;
         
-        // Add dark overlay
         const overlay = document.createElement('div');
         overlay.id = 'camera-warning-overlay';
         overlay.style.cssText = `
@@ -815,7 +780,6 @@ class ProctoringSystem {
             z-index: 10000;
         `;
         
-        // Remove any existing warnings first
         const existingWarning = document.getElementById('camera-disabled-warning');
         const existingOverlay = document.getElementById('camera-warning-overlay');
         if (existingWarning) existingWarning.remove();
@@ -829,7 +793,6 @@ class ProctoringSystem {
      * Show clear error message when camera permission is initially denied
      */
     showPermissionError() {
-        // Log permission denied event
         this.logEvent('camera_permission_denied', {
             severity: 'critical',
             timestamp: new Date().toISOString(),
@@ -897,7 +860,6 @@ class ProctoringSystem {
             </div>
         `;
         
-        // Add overlay
         const overlay = document.createElement('div');
         overlay.style.cssText = `
             position: fixed;
@@ -914,34 +876,28 @@ class ProctoringSystem {
     }
     
     /**
-     * NEW: Setup enhanced event tracking with screenshot capture
-     * Includes away time calculation and detailed focus tracking
+     * Setup enhanced event tracking with screenshot capture
      */
     setupEnhancedEventTracking() {
         console.log('Setting up enhanced event tracking with screenshots...');
         
-        // Track tab visibility changes (tab switching)
         document.addEventListener('visibilitychange', async () => {
             if (document.hidden) {
-                // User switched away - capture IMMEDIATELY before they leave
                 console.log('🚨 Tab switch detected - capturing screenshot');
                 
                 this.warningCount++;
                 
-                // Capture screenshot of current state
                 await this.captureEventScreenshot('tab_switch', {
                     warning_count: this.warningCount,
                     severity: this.warningCount >= this.maxWarnings ? 'critical' : 'warning',
                     blur_timestamp: new Date().toISOString()
                 });
                 
-                // Log the event
                 await this.logEvent('tab_switched', { 
                     warning_count: this.warningCount,
                     severity: this.warningCount >= this.maxWarnings ? 'critical' : 'warning'
                 });
                 
-                // Store blur time
                 this.windowBlurTime = Date.now();
                 this.windowHasFocus = false;
                 
@@ -949,7 +905,6 @@ class ProctoringSystem {
                     alert(`Warning ${this.warningCount}/${this.maxWarnings}: Tab switching not allowed!`);
                 }
             } else {
-                // User returned - calculate how long they were away
                 this.windowHasFocus = true;
                 this.windowFocusTime = Date.now();
                 
@@ -966,24 +921,20 @@ class ProctoringSystem {
             }
         });
         
-        // Track window blur (losing focus - e.g., clicking outside browser)
         window.addEventListener('blur', async () => {
             console.log('🚨 Window lost focus - capturing screenshot');
             
-            // Capture screenshot
             await this.captureEventScreenshot('window_blur', {
                 severity: 'warning',
                 blur_timestamp: new Date().toISOString()
             });
             
-            // Log event
             await this.logEvent('window_blur', { severity: 'warning' });
             
             this.windowHasFocus = false;
             this.windowBlurTime = Date.now();
         });
         
-        // Track window focus (regaining focus)
         window.addEventListener('focus', async () => {
             if (!this.windowHasFocus && this.windowBlurTime) {
                 const awayTimeSeconds = Math.round((Date.now() - this.windowBlurTime) / 1000);
@@ -1000,44 +951,46 @@ class ProctoringSystem {
             this.windowFocusTime = Date.now();
         });
         
-        // Track fullscreen exits
+        // NEW: Enhanced fullscreen tracking with auto-disqualification
         document.addEventListener('fullscreenchange', async () => {
             if (!document.fullscreenElement) {
                 this.fullscreenExitCount++;
+                this.fullscreenRetryAttempts = 0;
                 
-                console.log(`🚨 Fullscreen exit detected (${this.fullscreenExitCount}/${this.maxFullscreenExits}) - capturing screenshot`);
+                console.log(`🚨 Fullscreen exit detected (${this.fullscreenExitCount}/${this.maxFullscreenExits})`);
                 
-                // Capture screenshot
                 await this.captureEventScreenshot('fullscreen_exit', {
                     severity: this.fullscreenExitCount >= this.maxFullscreenExits ? 'critical' : 'warning',
                     exit_count: this.fullscreenExitCount,
                     exit_timestamp: new Date().toISOString()
                 });
                 
-                // Log event
                 await this.logEvent('fullscreen_exit', { 
                     severity: this.fullscreenExitCount >= this.maxFullscreenExits ? 'critical' : 'warning',
                     exit_count: this.fullscreenExitCount,
                     max_exits: this.maxFullscreenExits
                 });
                 
-                // Show disqualification warning
                 if (this.fullscreenExitCount >= this.maxFullscreenExits) {
+                    this.isDisqualified = true;
+                    
                     alert(`⚠️ CRITICAL WARNING: Fullscreen Exit #${this.fullscreenExitCount}\n\n` +
                         `You have exited fullscreen mode ${this.fullscreenExitCount} times.\n\n` +
                         `THIS CONSTITUTES EXAM DISQUALIFICATION!\n\n` +
-                        `This incident has been logged and your exam attempt may be invalidated.\n\n` +
-                        `The exam will now attempt to return to fullscreen mode.`);
+                        `Your exam will be automatically submitted with a score of 0%.\n\n` +
+                        `This incident has been logged.`);
+                    
+                    await this.autoSubmitTestDisqualified();
+                    
                 } else {
                     alert(`⚠️ WARNING: Fullscreen Exit #${this.fullscreenExitCount}/${this.maxFullscreenExits}\n\n` +
                         `Exiting fullscreen mode is not allowed during the exam.\n\n` +
-                        `After ${this.maxFullscreenExits} exits, you will be DISQUALIFIED.\n\n` +
+                        `After ${this.maxFullscreenExits} exits, you will be DISQUALIFIED and your exam will be submitted with 0%.\n\n` +
                         `This incident has been logged.\n\n` +
                         `The exam will now return to fullscreen mode.`);
+                    
+                    await this.restoreFullscreenWithRetry();
                 }
-                
-                // Try to re-enter fullscreen after alert
-                setTimeout(() => this.enterFullscreen(), 100);
             }
         });
         
@@ -1045,16 +998,208 @@ class ProctoringSystem {
     }
     
     /**
-     * Setup browser lockdown features (with screenshot capture on violations)
+     * NEW: Restore fullscreen mode with retry mechanism
+     */
+    async restoreFullscreenWithRetry() {
+        await this.sleep(300);
+        
+        const attemptFullscreen = async () => {
+            this.fullscreenRetryAttempts++;
+            
+            console.log(`Attempting to restore fullscreen (attempt ${this.fullscreenRetryAttempts}/${this.maxFullscreenRetries})...`);
+            
+            try {
+                const elem = document.documentElement;
+                
+                if (elem.requestFullscreen) {
+                    await elem.requestFullscreen();
+                    console.log('✓ Fullscreen restored successfully');
+                    return true;
+                } else if (elem.mozRequestFullScreen) {
+                    await elem.mozRequestFullScreen();
+                    return true;
+                } else if (elem.webkitRequestFullscreen) {
+                    await elem.webkitRequestFullscreen();
+                    return true;
+                } else if (elem.msRequestFullscreen) {
+                    await elem.msRequestFullscreen();
+                    return true;
+                }
+            } catch (error) {
+                console.error(`✗ Fullscreen restore attempt ${this.fullscreenRetryAttempts} failed:`, error);
+                return false;
+            }
+            
+            return false;
+        };
+        
+        let success = await attemptFullscreen();
+        
+        while (!success && this.fullscreenRetryAttempts < this.maxFullscreenRetries) {
+            await this.sleep(500 * this.fullscreenRetryAttempts);
+            success = await attemptFullscreen();
+        }
+        
+        if (!success) {
+            console.error('✗ Failed to restore fullscreen after maximum retries');
+            await this.logEvent('fullscreen_restore_failed', {
+                severity: 'critical',
+                retry_attempts: this.fullscreenRetryAttempts,
+                exit_count: this.fullscreenExitCount
+            });
+        }
+    }
+    
+    /**
+     * NEW: Auto-submit test when disqualified
+     */
+    async autoSubmitTestDisqualified() {
+        console.log('🚫 Auto-submitting test due to disqualification...');
+        
+        await this.logEvent('exam_disqualified', {
+            severity: 'critical',
+            reason: 'excessive_fullscreen_exits',
+            exit_count: this.fullscreenExitCount,
+            timestamp: new Date().toISOString()
+        });
+        
+        await this.sleep(1000);
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/attempt/${this.attemptId}/submit/`;
+        
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = this.csrfToken;
+        form.appendChild(csrfInput);
+        
+        const disqualifiedInput = document.createElement('input');
+        disqualifiedInput.type = 'hidden';
+        disqualifiedInput.name = 'disqualified';
+        disqualifiedInput.value = 'true';
+        form.appendChild(disqualifiedInput);
+        
+        const reasonInput = document.createElement('input');
+        reasonInput.type = 'hidden';
+        reasonInput.name = 'disqualification_reason';
+        reasonInput.value = `Excessive fullscreen exits (${this.fullscreenExitCount} times)`;
+        form.appendChild(reasonInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+    
+    /**
+     * NEW: Setup comprehensive text selection and copy/paste blocking
+     */
+    setupSelectionBlocking() {
+        console.log('🔒 Setting up comprehensive text selection blocking...');
+        
+        const style = document.createElement('style');
+        style.textContent = `
+            body, * {
+                -webkit-user-select: none !important;
+                -moz-user-select: none !important;
+                -ms-user-select: none !important;
+                user-select: none !important;
+                -webkit-touch-callout: none !important;
+            }
+            
+            input[type="text"],
+            input[type="number"],
+            input[type="email"],
+            textarea {
+                -webkit-user-select: text !important;
+                -moz-user-select: text !important;
+                -ms-user-select: text !important;
+                user-select: text !important;
+            }
+            
+            * {
+                -webkit-user-drag: none !important;
+                -moz-user-drag: none !important;
+                user-drag: none !important;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        document.addEventListener('selectstart', async (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return true;
+            }
+            
+            e.preventDefault();
+            this.selectionAttempts++;
+            
+            console.log(`🚨 Text selection attempt blocked (#${this.selectionAttempts})`);
+            
+            if (this.selectionAttempts % 3 === 0) {
+                await this.captureEventScreenshot('text_selection_attempt', {
+                    attempt_count: this.selectionAttempts,
+                    severity: 'warning'
+                });
+            }
+            
+            await this.logEvent('text_selection_blocked', {
+                attempt_count: this.selectionAttempts,
+                severity: this.selectionAttempts >= 3 ? 'warning' : 'info'
+            });
+            
+            return false;
+        });
+        
+        document.addEventListener('dragstart', async (e) => {
+            e.preventDefault();
+            console.log('🚨 Drag attempt blocked');
+            
+            await this.logEvent('drag_blocked', {
+                severity: 'info'
+            });
+            
+            return false;
+        });
+        
+        document.addEventListener('selectionchange', async () => {
+            const selection = window.getSelection();
+            
+            if (selection && selection.toString().length > 0) {
+                const activeElement = document.activeElement;
+                
+                if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+                    return;
+                }
+                
+                selection.removeAllRanges();
+                
+                this.selectionAttempts++;
+                
+                if (this.selectionAttempts % 5 === 0) {
+                    console.log(`🚨 Persistent selection attempts detected (${this.selectionAttempts})`);
+                    
+                    await this.logEvent('persistent_selection_attempts', {
+                        attempt_count: this.selectionAttempts,
+                        severity: 'warning'
+                    });
+                }
+            }
+        });
+        
+        console.log('✓ Text selection blocking enabled');
+    }
+    
+    /**
+     * Setup browser lockdown with enhanced copy/paste blocking
      */
     setupBrowserLockdown() {
-        // Right-click attempts with screenshot capture after multiple attempts
+        console.log('🔒 Setting up enhanced browser lockdown...');
+        
         let rightClickCount = 0;
         document.addEventListener('contextmenu', async (e) => {
             e.preventDefault();
             rightClickCount++;
             
-            // Capture screenshot after multiple attempts
             if (rightClickCount >= 3) {
                 console.log('🚨 Multiple right-click attempts - capturing screenshot');
                 await this.captureEventScreenshot('right_click_violation', {
@@ -1067,56 +1212,194 @@ class ProctoringSystem {
                 attempt_count: rightClickCount,
                 severity: rightClickCount >= 3 ? 'warning' : 'info'
             });
+            
+            return false;
         });
         
-        // Keyboard shortcut attempts with screenshot capture
-        let shortcutAttempts = 0;
         document.addEventListener('keydown', async (e) => {
-            // Dev tools attempts
+            let blocked = false;
+            let eventType = '';
+            let action = '';
+            
             if (e.key === 'F12' || 
-                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
-                (e.ctrlKey && e.key === 'U')) {
-                e.preventDefault();
-                shortcutAttempts++;
-                
-                // Capture screenshot after multiple attempts
-                if (shortcutAttempts >= 3) {
-                    console.log('🚨 Multiple devtools attempts - capturing screenshot');
-                    await this.captureEventScreenshot('devtools_violation', {
-                        attempt_count: shortcutAttempts,
-                        severity: 'warning'
-                    });
+                (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key)) ||
+                (e.ctrlKey && ['U', 'u'].includes(e.key))) {
+                blocked = true;
+                eventType = 'devtools_blocked';
+                action = 'devtools';
+            }
+            
+            // NEW: Block Ctrl+C
+            if (e.ctrlKey && ['C', 'c'].includes(e.key)) {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    blocked = true;
+                    eventType = 'copy_blocked';
+                    action = 'copy';
+                    this.copyAttempts++;
+                    
+                    console.log(`🚨 Copy attempt blocked (Ctrl+C) - #${this.copyAttempts}`);
+                    
+                    if (this.copyAttempts % 3 === 0) {
+                        await this.captureEventScreenshot('copy_attempt', {
+                            attempt_count: this.copyAttempts,
+                            severity: 'warning',
+                            method: 'keyboard'
+                        });
+                    }
                 }
+            }
+            
+            // NEW: Block Ctrl+V
+            if (e.ctrlKey && ['V', 'v'].includes(e.key)) {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    blocked = true;
+                    eventType = 'paste_blocked';
+                    action = 'paste';
+                    this.pasteAttempts++;
+                    
+                    console.log(`🚨 Paste attempt blocked (Ctrl+V) - #${this.pasteAttempts}`);
+                    
+                    if (this.pasteAttempts % 3 === 0) {
+                        await this.captureEventScreenshot('paste_attempt', {
+                            attempt_count: this.pasteAttempts,
+                            severity: 'warning',
+                            method: 'keyboard'
+                        });
+                    }
+                }
+            }
+            
+            // NEW: Block Ctrl+A
+            if (e.ctrlKey && ['A', 'a'].includes(e.key)) {
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                    blocked = true;
+                    eventType = 'select_all_blocked';
+                    action = 'select_all';
+                    this.selectAllAttempts++;
+                    
+                    console.log(`🚨 Select All attempt blocked (Ctrl+A) - #${this.selectAllAttempts}`);
+                    
+                    if (this.selectAllAttempts % 3 === 0) {
+                        await this.captureEventScreenshot('select_all_attempt', {
+                            attempt_count: this.selectAllAttempts,
+                            severity: 'warning'
+                        });
+                    }
+                }
+            }
+            
+            if ((e.ctrlKey || e.metaKey) && ['P', 'p'].includes(e.key)) {
+                blocked = true;
+                eventType = 'print_blocked';
+                action = 'print';
+            }
+            
+            if ((e.ctrlKey || e.metaKey) && ['S', 's'].includes(e.key)) {
+                blocked = true;
+                eventType = 'save_blocked';
+                action = 'save';
+            }
+            
+            if (blocked) {
+                e.preventDefault();
+                e.stopPropagation();
                 
-                await this.logEvent('devtools_blocked', { 
-                    attempt_count: shortcutAttempts,
-                    severity: shortcutAttempts >= 3 ? 'warning' : 'info'
+                await this.logEvent(eventType, {
+                    action: action,
+                    key: e.key,
+                    severity: 'warning'
+                });
+                
+                return false;
+            }
+        });
+        
+        document.addEventListener('copy', async (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return true;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            this.copyAttempts++;
+            
+            console.log(`🚨 Copy event blocked (context menu) - #${this.copyAttempts}`);
+            
+            if (this.copyAttempts % 3 === 0) {
+                await this.captureEventScreenshot('copy_attempt', {
+                    attempt_count: this.copyAttempts,
+                    severity: 'warning',
+                    method: 'context_menu'
                 });
             }
             
-            // Copy/paste attempts with immediate screenshot
-            if (e.ctrlKey && (e.key === 'c' || e.key === 'v')) {
-                e.preventDefault();
-                
-                console.log('🚨 Copy/paste attempt - capturing screenshot');
-                await this.captureEventScreenshot('copy_paste_attempt', {
-                    action: e.key === 'c' ? 'copy' : 'paste',
-                    severity: 'warning'
-                });
-                
-                await this.logEvent('copy_paste_blocked', { 
-                    action: e.key === 'c' ? 'copy' : 'paste',
-                    severity: 'warning'
-                });
-            }
+            await this.logEvent('copy_event_blocked', {
+                action: 'copy',
+                attempt_count: this.copyAttempts,
+                severity: 'warning'
+            });
+            
+            return false;
         });
         
-        console.log('✓ Browser lockdown enabled with screenshot capture');
+        document.addEventListener('paste', async (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return true;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            this.pasteAttempts++;
+            
+            console.log(`🚨 Paste event blocked (context menu) - #${this.pasteAttempts}`);
+            
+            if (this.pasteAttempts % 3 === 0) {
+                await this.captureEventScreenshot('paste_attempt', {
+                    attempt_count: this.pasteAttempts,
+                    severity: 'warning',
+                    method: 'context_menu'
+                });
+            }
+            
+            await this.logEvent('paste_event_blocked', {
+                action: 'paste',
+                attempt_count: this.pasteAttempts,
+                severity: 'warning'
+            });
+            
+            return false;
+        });
+        
+        document.addEventListener('cut', async (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                return true;
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('🚨 Cut event blocked');
+            
+            await this.logEvent('cut_event_blocked', {
+                action: 'cut',
+                severity: 'warning'
+            });
+            
+            return false;
+        });
+        
+        console.log('✓ Enhanced browser lockdown enabled');
+        console.log('   ✓ Right-click disabled');
+        console.log('   ✓ Ctrl+C (copy) blocked');
+        console.log('   ✓ Ctrl+V (paste) blocked');
+        console.log('   ✓ Ctrl+A (select all) blocked');
+        console.log('   ✓ DevTools shortcuts blocked');
+        console.log('   ✓ Print blocked');
+        console.log('   ✓ Text selection disabled');
     }
     
     /**
-     * NEW: Capture screenshot triggered by specific event
-     * These are saved separately from periodic snapshots
+     * Capture screenshot triggered by specific event
      */
     async captureEventScreenshot(eventType, metadata = {}) {
         if (!this.captureOnEvents) {
@@ -1124,38 +1407,35 @@ class ProctoringSystem {
             return;
         }
         
-        // Cooldown check - prevent duplicate screenshots
         const now = Date.now();
-        if (now - this.lastEventScreenshotTime < this.eventScreenshotCooldown) {
-            console.log('Event screenshot cooldown active, skipping');
+        const lastCapture = this.lastEventScreenshot[eventType] || 0;
+        
+        if (now - lastCapture < this.eventScreenshotCooldown) {
+            console.log(`⏳ Skipping ${eventType} screenshot (cooldown)`);
             return;
         }
         
-        this.lastEventScreenshotTime = now;
+        this.lastEventScreenshot[eventType] = now;
         
         try {
-            // Small delay to capture the last state before user leaves
             await new Promise(resolve => setTimeout(resolve, this.eventScreenshotDelay));
             
             console.log(`📸 Capturing event-triggered screenshot: ${eventType}`);
             
-            // Capture screenshot using html2canvas
             const canvas = await html2canvas(document.body, {
                 allowTaint: true,
                 useCORS: true,
                 logging: false,
-                scale: 0.5,  // Same as periodic screenshots
+                scale: 0.5,
                 backgroundColor: '#ffffff',
                 removeContainer: true,
-                imageTimeout: 5000,  // Faster timeout for event captures
+                imageTimeout: 5000,
                 onclone: (clonedDoc) => {
-                    // Remove problematic elements
                     const problematic = clonedDoc.querySelectorAll('video, iframe, embed');
                     problematic.forEach(el => el.remove());
                 }
             });
             
-            // Convert to blob
             const blob = await new Promise(resolve => {
                 canvas.toBlob(resolve, 'image/jpeg', 0.6);
             });
@@ -1165,7 +1445,6 @@ class ProctoringSystem {
                 return;
             }
             
-            // Upload with special event type marker
             await this.uploadEventSnapshot(blob, eventType, metadata);
             
             console.log(`✓ Event screenshot captured: ${eventType}`);
@@ -1173,7 +1452,6 @@ class ProctoringSystem {
         } catch (error) {
             console.error(`✗ Failed to capture event screenshot (${eventType}):`, error);
             
-            // Log the failure
             await this.logEvent('event_screenshot_failed', {
                 event_type: eventType,
                 error: error.message,
@@ -1188,7 +1466,7 @@ class ProctoringSystem {
     async uploadEventSnapshot(blob, eventType, metadata = {}) {
         const formData = new FormData();
         formData.append('snapshot', blob, `event_${eventType}_${Date.now()}.jpg`);
-        formData.append('snapshot_type', `event_${eventType}`);  // Special type for events
+        formData.append('snapshot_type', `event_${eventType}`);
         formData.append('event_metadata', JSON.stringify(metadata));
         formData.append('csrfmiddlewaretoken', this.csrfToken);
         
@@ -1218,7 +1496,6 @@ class ProctoringSystem {
             return;
         }
         
-        // Verify camera is still active
         const videoTrack = this.videoStream.getVideoTracks()[0];
         if (!videoTrack || videoTrack.readyState === 'ended' || !videoTrack.enabled) {
             console.warn('Camera is not active - skipping snapshot');
@@ -1226,29 +1503,24 @@ class ProctoringSystem {
         }
         
         try {
-            // Create hidden video element
             const video = document.createElement('video');
             video.srcObject = this.videoStream;
             video.play();
             
-            // Wait for video to be ready
             await new Promise(resolve => {
                 video.onloadedmetadata = resolve;
             });
             
-            // Create canvas and capture frame
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0);
             
-            // Convert to blob with compression (60% quality)
             const blob = await new Promise(resolve => {
                 canvas.toBlob(resolve, 'image/jpeg', 0.6);
             });
             
-            // Upload snapshot
             await this.uploadSnapshot(blob, 'webcam');
             
             console.log('✓ Webcam snapshot captured and uploaded');
@@ -1261,7 +1533,6 @@ class ProctoringSystem {
      * Capture and upload screen screenshot (periodic)
      */
     async captureScreenshot() {
-        // Check if capable
         if (!this.screenshotCapable || !this.html2canvasAvailable) {
             console.warn('⚠️ Screenshot skipped - not capable');
             await this.logEvent('screenshot_skipped', {
@@ -1298,7 +1569,6 @@ class ProctoringSystem {
         } catch (error) {
             console.error('✗ Screenshot failed:', error);
             
-            // Log failure to backend
             await this.logEvent('screenshot_failed', {
                 severity: 'warning',
                 error: error.message,
@@ -1334,11 +1604,9 @@ class ProctoringSystem {
      * Start periodic snapshot timer
      */
     startSnapshotTimer() {
-        // Take first snapshots immediately
         this.captureWebcamSnapshot();
         this.captureScreenshot();
         
-        // Then take snapshots at intervals
         this.snapshotTimer = setInterval(() => {
             this.captureWebcamSnapshot();
             this.captureScreenshot();
@@ -1357,20 +1625,29 @@ class ProctoringSystem {
             elem.requestFullscreen().catch(err => {
                 console.error('Fullscreen request failed:', err);
             });
+        } else if (elem.mozRequestFullScreen) {
+            elem.mozRequestFullScreen().catch(err => {
+                console.error('Fullscreen request failed:', err);
+            });
+        } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen().catch(err => {
+                console.error('Fullscreen request failed:', err);
+            });
+        } else if (elem.msRequestFullscreen) {
+            elem.msRequestFullscreen().catch(err => {
+                console.error('Fullscreen request failed:', err);
+            });
         }
     }
     
     /**
-     * Log IP address to database with fallback
-     * UPDATED: Properly saves IP to TestAttempt model
+     * Log IP address to database
      */
     async logIPAddress() {
         try {
             const response = await fetch('https://api.ipify.org?format=json');
             const data = await response.json();
             
-            // Log to database with special 'ip_logged' event type
-            // Backend will save this to TestAttempt.ip_address field
             await this.logEvent('ip_logged', { 
                 ip: data.ip,
                 severity: 'info'
@@ -1379,7 +1656,6 @@ class ProctoringSystem {
             console.log('✓ IP address logged:', data.ip);
         } catch (error) {
             console.error('Failed to log IP:', error);
-            // Try to log at least the server-side IP
             await this.logEvent('ip_logged', {
                 ip: 'server_side',
                 note: 'Failed to get client IP, using server detection',
@@ -1414,24 +1690,35 @@ class ProctoringSystem {
     }
     
     /**
+     * Helper: Sleep function
+     */
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    /**
      * Cleanup resources when exam ends
      */
     cleanup() {
-        // Stop camera monitoring
         if (this.streamMonitorTimer) {
             clearInterval(this.streamMonitorTimer);
         }
         
-        // Stop snapshot timer
         if (this.snapshotTimer) {
             clearInterval(this.snapshotTimer);
         }
         
-        // Stop video stream
         if (this.videoStream) {
             this.videoStream.getTracks().forEach(track => track.stop());
+        }
+        
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
         }
         
         console.log('✓ Proctoring system cleaned up');
     }
 }
+
+// Export for use in templates
+window.ProctoringSystem = ProctoringSystem;

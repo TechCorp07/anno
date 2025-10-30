@@ -233,12 +233,18 @@ def get_time_remaining(request, attempt_id):
 @login_required
 @require_http_methods(["POST"])
 def submit_test(request, attempt_id):
-    """Submit the entire test"""
+    """
+    UPDATED: Submit the entire test with support for disqualification
+    """
     attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
     
     if attempt.status == 'completed':
         messages.info(request, 'This test has already been submitted.')
         return redirect('test_result', attempt_id=attempt.id)
+    
+    # Check if this is a disqualification submission
+    is_disqualified = request.POST.get('disqualified') == 'true'
+    disqualification_reason = request.POST.get('disqualification_reason', '')
     
     # Calculate time spent
     time_spent = (timezone.now() - attempt.started_at).total_seconds()
@@ -248,23 +254,55 @@ def submit_test(request, attempt_id):
     attempt.status = 'completed'
     attempt.completed_at = timezone.now()
     
-    question_ids = attempt.question_set or []
-    for question_id in question_ids:
-        question = Question.objects.get(id=question_id)
-        # Create Answer object if it doesn't exist (for unanswered questions)
-        answer, created = Answer.objects.get_or_create(
-            attempt=attempt,
-            question=question,
-            defaults={'is_correct': False}  # Unanswered = incorrect
-        )
-        # Check answer for all (in case some weren't checked when submitted)
-        if answer.is_correct is None:
-            answer.check_answer()
-            
-    # Calculate score
-    attempt.calculate_score()
+    # NEW: Handle disqualification
+    if is_disqualified:
+        # Mark all answers as incorrect (0% score)
+        question_ids = attempt.question_set or []
+        for question_id in question_ids:
+            question = Question.objects.get(id=question_id)
+            # Create Answer object marking as incorrect
+            Answer.objects.update_or_create(
+                attempt=attempt,
+                question=question,
+                defaults={'is_correct': False}  # All answers marked incorrect
+            )
+        
+        # Force score to 0%
+        attempt.score = 0.0
+        attempt.passed = False
+        
+        # Store disqualification metadata
+        if not attempt.metadata:
+            attempt.metadata = {}
+        attempt.metadata['disqualified'] = True
+        attempt.metadata['disqualification_reason'] = disqualification_reason
+        attempt.metadata['disqualification_timestamp'] = timezone.now().isoformat()
+        
+        attempt.save()
+        
+        messages.error(request, 
+            f'⚠️ EXAM DISQUALIFIED: {disqualification_reason}. Your score has been set to 0%.')
+        
+    else:
+        # Normal submission - process answers normally
+        question_ids = attempt.question_set or []
+        for question_id in question_ids:
+            question = Question.objects.get(id=question_id)
+            # Create Answer object if it doesn't exist (for unanswered questions)
+            answer, created = Answer.objects.get_or_create(
+                attempt=attempt,
+                question=question,
+                defaults={'is_correct': False}  # Unanswered = incorrect
+            )
+            # Check answer for all (in case some weren't checked when submitted)
+            if answer.is_correct is None:
+                answer.check_answer()
+        
+        # Calculate score normally
+        attempt.calculate_score()
+        
+        messages.success(request, 'Test submitted successfully!')
     
-    messages.success(request, 'Test submitted successfully!')
     return redirect('test_result', attempt_id=attempt.id)
 
 
