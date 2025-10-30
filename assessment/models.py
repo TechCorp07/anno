@@ -624,6 +624,13 @@ class TestAttempt(models.Model):
         help_text="List of question IDs for this attempt"
     )
     
+    metadata = models.JSONField(
+        null=True,
+        blank=True,
+        default=dict,
+        help_text="Additional metadata including disqualification info, proctoring flags, etc."
+    )
+    
     class Meta:
         ordering = ['-started_at']
         indexes = [

@@ -608,7 +608,7 @@ function submitDICOMAnswer(questionId, coordinates) {
                 </button>
                 
                 <button type="button"
-                        @click="if(confirm('Are you sure you want to submit your test?')) { $el.closest('form').submit(); }"
+                        @click="if (confirmSubmit()) { $el.closest('form').submit(); }"
                         x-show="currentQuestion === {{ questions|length }}"
                         class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
                     Submit Test
@@ -660,22 +660,43 @@ function testTimer(initialTime) {
         currentQuestion: 1,
         answered: {},
         answers: {},
+        isSubmitting: false,
+        beforeUnloadHandler: null,
         
         init() {
             this.startTimer();
-            window.addEventListener('beforeunload', (e) => {
-                e.preventDefault();
-                e.returnValue = '';
-            });
+
+            this.beforeUnloadHandler = (e) => {
+                if (!this.isSubmitting) {
+                    e.preventDefault();
+                    e.returnValue = 'Changes you made may not be saved.';
+                    return 'Changes you made may not be saved.';
+                }
+            };
+
+            window.addEventListener('beforeunload', this.beforeUnloadHandler);
+        },
+
+        allowNavigation() {
+            this.isSubmitting = true;
+            if (this.beforeUnloadHandler) {
+                window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+            }
         },
         
         startTimer() {
             setInterval(() => {
                 if (this.timeRemaining > 0) {
                     this.timeRemaining--;
-                } else {
-                    alert('Time is up! Your test will be submitted automatically.');
-                    document.querySelector('form').submit();
+                } else if (this.timeRemaining === 0 && !this.isSubmitting) {
+                    this.isSubmitting = true;
+                    this.allowNavigation();  // Remove beforeunload
+                    
+                    alert('⏰ Time is up! Your test will be submitted automatically.');
+                    
+                    setTimeout(() => {
+                        document.querySelector('form').submit();
+                    }, 500);
                 }
             }, 1000);
         },
@@ -698,6 +719,14 @@ function testTimer(initialTime) {
                 this.currentQuestion--;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
+        },
+
+        confirmSubmit() {
+            if (confirm('⚠️ Submit Test?\n\nAre you sure you want to submit?')) {
+                this.allowNavigation();  // Remove beforeunload
+                return true;
+            }
+            return false;
         },
         
         markAnswered(questionId, answer) {
