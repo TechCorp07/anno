@@ -16,7 +16,9 @@ class ProctoringSystem {
         this.maxWarnings = 3;
         this.fullscreenExitCount = 0;
         this.maxFullscreenExits = 3;
-        
+        this.submittingDisqualification = false;
+        this.cameraDisabledCount = 0;
+
         // NEW: Fullscreen restoration
         this.fullscreenRetryAttempts = 0;
         this.maxFullscreenRetries = 5;
@@ -694,21 +696,39 @@ class ProctoringSystem {
      * Handle camera being disabled during exam
      */
     handleCameraDisabled() {
+        console.error('🚨 CRITICAL: Camera stream stopped during exam!');
+
         if (this.cameraDisabledWarningShown) {
             return;
         }
         
         this.cameraDisabledWarningShown = true;
+        this.isDisqualified = true;
+        this.cameraDisabledCount = (this.cameraDisabledCount || 0) + 1;
         
         this.logEvent('camera_disabled', {
             severity: 'critical',
             timestamp: new Date().toISOString(),
-            note: 'Camera was disabled or disconnected during exam'
+            count: this.cameraDisabledCount,
+            note: 'Camera was turned off during exam - AUTO-DISQUALIFICATION'
         });
+
+        // Disable interactions immediately
+        document.body.style.pointerEvents = 'none';
+        document.body.style.opacity = '0.5';
         
+        // Show non-blocking alert
+        setTimeout(() => {
+            alert(`⚠️ EXAM DISQUALIFIED\n\n` +
+                `Your camera has been turned off during the exam.\n\n` +
+                `This is a critical violation of exam rules.\n\n` +
+                `Your exam is being submitted automatically with a score of 0%.\n\n` +
+                `This incident has been logged.`);
+        }, 100);
+        
+        // Auto-submit immediately
+        this.autoSubmitTestDisqualified('camera_disabled_during_exam', this.cameraDisabledCount);
         this.showCameraDisabledWarning();
-        
-        console.error('❌ CRITICAL: Camera disabled during exam');
     }
     
     /**
@@ -991,18 +1011,24 @@ class ProctoringSystem {
                     console.error(`❌ DISQUALIFICATION TRIGGERED: ${this.fullscreenExitCount} exits`);
                     this.isDisqualified = true;
                     
-                    alert(`⚠️ EXAM DISQUALIFIED\n\n` +
-                        `You have exited fullscreen mode ${this.fullscreenExitCount} times.\n\n` +
-                        `The maximum allowed is ${this.maxFullscreenExits} exits.\n\n` +
-                        `Your exam will now be submitted with a score of 0%.\n\n` +
-                        `This incident has been logged.`);
-                    
-                    // Disable all interactions immediately
+                    // Disable all interactions IMMEDIATELY (before alert)
                     document.body.style.pointerEvents = 'none';
                     document.body.style.opacity = '0.5';
                     
+                    // Show alert in a non-blocking way
+                    setTimeout(() => {
+                        alert(`⚠️ EXAM DISQUALIFIED\n\n` +
+                            `You have exited fullscreen mode ${this.fullscreenExitCount} times.\n\n` +
+                            `The maximum allowed is ${this.maxFullscreenExits} exits.\n\n` +
+                            `Your exam is being submitted automatically with a score of 0%.\n\n` +
+                            `This incident has been logged.`);
+                    }, 100);
+                    
                     // Force submission
-                    await this.autoSubmitTestDisqualified();
+                    this.isDisqualified = true;
+                    document.body.style.pointerEvents = 'none';  // Disable first
+                    setTimeout(() => alert("..."), 100);  // Non-blocking
+                    await this.autoSubmitTestDisqualified(reason, count);
                     
                 } else {
                     const remaining = this.maxFullscreenExits - this.fullscreenExitCount;
@@ -1090,14 +1116,21 @@ class ProctoringSystem {
     /**
      * Auto-submit test when disqualified with multiple fallbacks
      */
-    async autoSubmitTestDisqualified() {
+    async autoSubmitTestDisqualified(reason = 'violation', violationCount = 0) {
         console.log('🚫 Auto-submitting test due to disqualification...');
+        
+        // Prevent multiple submissions
+        if (this.submittingDisqualification) {
+            console.log('⚠️ Already submitting disqualification, skipping...');
+            return;
+        }
+        this.submittingDisqualification = true;
         
         // Log the disqualification event
         await this.logEvent('exam_disqualified', {
             severity: 'critical',
-            reason: 'excessive_fullscreen_exits',
-            exit_count: this.fullscreenExitCount,
+            reason: reason,
+            violation_count: violationCount,
             timestamp: new Date().toISOString()
         });
         
@@ -1126,7 +1159,7 @@ class ProctoringSystem {
             const reasonInput = document.createElement('input');
             reasonInput.type = 'hidden';
             reasonInput.name = 'disqualification_reason';
-            reasonInput.value = `Excessive fullscreen exits (${this.fullscreenExitCount} times)`;
+            reasonInput.value = reason.replace(/_/g, ' ') + (violationCount > 0 ? ` (${violationCount} times)` : '');
             form.appendChild(reasonInput);
             
             document.body.appendChild(form);
