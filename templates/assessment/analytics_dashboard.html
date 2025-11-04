@@ -355,10 +355,9 @@
             <div class="stat-label">Pass Rate</div>
             <div class="stat-value">
                 {% if total_tests > 0 %}
-                    {{ passed_tests|add:0|floatformat:0|divisibleby:total_tests|yesno:"100,"|default:"" }}
                     {% widthratio passed_tests total_tests 100 %}%
                 {% else %}
-                    N/A
+                    0%
                 {% endif %}
             </div>
         </div>

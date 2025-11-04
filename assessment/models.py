@@ -605,7 +605,7 @@ class TestAttempt(models.Model):
     consent_timestamp = models.DateTimeField(null=True, blank=True)
     
     # Timing
-    started_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     time_spent_seconds = models.IntegerField(null=True, blank=True)
     
@@ -647,6 +647,9 @@ class TestAttempt(models.Model):
         if self.status == 'completed':
             return False
         
+        if not self.started_at:
+            return False
+        
         time_limit = timedelta(minutes=self.test.time_limit_minutes)
         return timezone.now() > (self.started_at + time_limit)
     
@@ -654,6 +657,9 @@ class TestAttempt(models.Model):
         """Get remaining time in seconds"""
         if self.status == 'completed':
             return 0
+        
+        if not self.started_at:
+            return self.test.time_limit_minutes * 60
         
         time_limit = timedelta(minutes=self.test.time_limit_minutes)
         elapsed = timezone.now() - self.started_at

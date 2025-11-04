@@ -417,6 +417,8 @@ def test_consent_form(request, test_id):
             attempt.consent_given = True
             attempt.consent_timestamp = timezone.now()
             attempt.status = 'in_progress'
+            attempt.started_at = timezone.now()
+            
             attempt.save()
             
             # Log consent acceptance as proctoring event
@@ -428,7 +430,8 @@ def test_consent_form(request, test_id):
                     'ip_address': attempt.ip_address,
                     'user_agent': attempt.user_agent,
                     'consent_timestamp': timezone.now().isoformat(),
-                    'face_verified': True
+                    'face_verified': True,
+                    'test_start_time': timezone.now().isoformat()
                 }
             )
             
@@ -472,7 +475,8 @@ def test_consent_form(request, test_id):
             consent_timestamp=None,
             ip_address=client_ip,
             user_agent=request.META.get('HTTP_USER_AGENT', ''),
-            status='started'  # Will change to 'in_progress' after consent
+            status='started',  # Will change to 'in_progress' after consent
+            started_at=None
         )
     
     return render(request, 'assessment/consent_form.html', {
