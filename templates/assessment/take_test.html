@@ -448,7 +448,7 @@ function submitDICOMAnswer(questionId, coordinates) {
     </div>
     
     <!-- Questions Form -->
-    <form method="post" action="{% url 'submit_test' attempt.id %}">
+    <form id="submitForm" method="post" action="{% url 'submit_test' attempt.id %}">
         {% csrf_token %}
         
         {% for question in questions %}

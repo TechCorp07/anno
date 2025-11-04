@@ -1058,6 +1058,7 @@ class ProctoringEventAdmin(admin.ModelAdmin):
         'event_type',
         'timestamp',
         'attempt__test',
+        'attempt',
     ]
     search_fields = [
         'attempt__user__username',

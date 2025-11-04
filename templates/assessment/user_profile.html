@@ -1,0 +1,448 @@
+{% extends 'assessment/base.html' %}
+{% load static %}
+
+{% block title %}My Profile - MRI Training Platform{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --peakpoint-navy: #1e3a5f;
+        --peakpoint-green: #10b981;
+    }
+    
+    .profile-section {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .section-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--peakpoint-green), #059669);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+    }
+    
+    .cv-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .cv-uploaded {
+        background-color: #d1fae5;
+        color: #065f46;
+    }
+    
+    .cv-missing {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-6xl">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-4xl font-bold" style="color: var(--peakpoint-navy);">
+                    My Profile
+                </h1>
+                <p class="text-gray-600 mt-2">Manage your personal information and documents</p>
+            </div>
+            <a href="{% url 'dashboard' %}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                ← Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-800{% elif message.tags == 'error' %}bg-red-50 border border-red-200 text-red-800{% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Profile Status Overview -->
+    <div class="grid md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Account Status</p>
+                    <p class="text-lg font-bold text-gray-900">Active</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">CV Status</p>
+                    {% if profile.cv_document %}
+                        <p class="text-lg font-bold text-green-600">Uploaded ✓</p>
+                    {% else %}
+                        <p class="text-lg font-bold text-red-600">Missing</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Profile Completion</p>
+                    <p class="text-lg font-bold text-gray-900">
+                        {% if profile.profile_completed %}Complete{% else %}Incomplete{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Form -->
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        <!-- Personal Information -->
+        <div class="profile-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold" style="color: var(--peakpoint-navy);">Personal Information</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                    <input type="text" value="{{ user.get_full_name }}" disabled class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg">
+                    <p class="text-xs text-gray-500 mt-1">Contact support to change your name</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" value="{{ user.email }}" disabled class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg">
+                    <p class="text-xs text-gray-500 mt-1">Contact support to change your email</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                    {{ form.phone_number }}
+                    {% if form.phone_number.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.phone_number.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
+                    {{ form.date_of_birth }}
+                    {% if form.date_of_birth.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.date_of_birth.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
+                    {{ form.gender }}
+                    {% if form.gender.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.gender.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">National ID</label>
+                    <input type="text" value="{{ profile.national_id }}" disabled class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg">
+                    <p class="text-xs text-gray-500 mt-1">Cannot be changed after registration</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Address Information -->
+        <div class="profile-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold" style="color: var(--peakpoint-navy);">Address Information</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Street Address *</label>
+                    {{ form.street_address }}
+                    {% if form.street_address.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.street_address.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Suburb/Neighborhood</label>
+                    {{ form.suburb }}
+                    {% if form.suburb.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.suburb.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">City/Town *</label>
+                    {{ form.city }}
+                    {% if form.city.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.city.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Province *</label>
+                    {{ form.province }}
+                    {% if form.province.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.province.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
+                    {{ form.postal_code }}
+                    {% if form.postal_code.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.postal_code.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- CV Document -->
+        <div class="profile-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold" style="color: var(--peakpoint-navy);">CV/Resume</h2>
+            </div>
+
+            {% if profile.cv_document %}
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <p class="font-semibold text-green-800">Current CV on File</p>
+                                <p class="text-sm text-green-700">{{ profile.get_cv_filename }}</p>
+                                {% if profile.cv_uploaded_at %}
+                                    <p class="text-xs text-green-600">Uploaded: {{ profile.cv_uploaded_at|date:"F j, Y" }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ profile.cv_document.url }}" target="_blank" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                            View CV
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-start">
+                        <svg class="w-6 h-6 text-yellow-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <div>
+                            <p class="font-semibold text-yellow-800">CV Not Uploaded</p>
+                            <p class="text-sm text-yellow-700">Please upload your CV to complete your profile</p>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    {% if profile.cv_document %}Update CV (Optional){% else %}Upload CV *{% endif %}
+                </label>
+                {{ form.cv_document }}
+                {% if form.cv_document.errors %}
+                    <p class="text-red-500 text-sm mt-1">{{ form.cv_document.errors.0 }}</p>
+                {% endif %}
+                <p class="text-sm text-gray-500 mt-2">
+                    Accepted formats: PDF (.pdf) or Word (.docx) • Max size: 5MB
+                </p>
+            </div>
+        </div>
+
+        <!-- Professional Information -->
+        <div class="profile-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold" style="color: var(--peakpoint-navy);">Professional Background</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Employment Status *</label>
+                    {{ form.employment_status }}
+                    {% if form.employment_status.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.employment_status.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Current Employer</label>
+                    {{ form.current_employer }}
+                    {% if form.current_employer.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.current_employer.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Years of Experience *</label>
+                    {{ form.years_of_experience }}
+                    {% if form.years_of_experience.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.years_of_experience.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Education Level *</label>
+                    {{ form.education_level }}
+                    {% if form.education_level.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.education_level.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Institution Attended</label>
+                    {{ form.institution_attended }}
+                    {% if form.institution_attended.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.institution_attended.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Radiography License Number</label>
+                    {{ form.radiography_license_number }}
+                    {% if form.radiography_license_number.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.radiography_license_number.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="flex items-center space-x-3">
+                        {{ form.has_mri_experience }}
+                        <span class="text-sm font-medium text-gray-700">I have previous MRI experience</span>
+                    </label>
+                    {% if form.has_mri_experience.errors %}
+                        <p class="text-red-500 text-sm mt-1">{{ form.has_mri_experience.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Photo (Optional) -->
+        <div class="profile-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold" style="color: var(--peakpoint-navy);">Profile Photo</h2>
+            </div>
+
+            {% if profile.profile_photo %}
+                <div class="flex items-center space-x-4 mb-4">
+                    <img src="{{ profile.profile_photo.url }}" alt="Profile Photo" class="w-24 h-24 rounded-full object-cover border-4 border-gray-200">
+                    <div>
+                        <p class="text-sm text-gray-600">Current profile photo</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Update Profile Photo (Optional)</label>
+                {{ form.profile_photo }}
+                {% if form.profile_photo.errors %}
+                    <p class="text-red-500 text-sm mt-1">{{ form.profile_photo.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="flex justify-end space-x-4">
+            <a href="{% url 'dashboard' %}" class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition font-medium shadow-lg">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // CV File validation
+    document.querySelector('input[name="cv_document"]')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size must be under 5MB');
+                e.target.value = '';
+                return;
+            }
+            
+            // Check file type
+            const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!validTypes.includes(file.type)) {
+                alert('Only PDF and DOCX files are allowed');
+                e.target.value = '';
+                return;
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -5,10 +5,8 @@ Includes: Categories, Topics, Cohorts, Proctoring, Plagiarism Detection
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.core.validators import RegexValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator, FileExtensionValidator
 from django.db.models import Count, Q
-from django.core.validators import MinValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from datetime import timedelta
@@ -81,9 +79,36 @@ class UserProfile(models.Model):
         blank=True,
         help_text="Your city or town"
     )
-    address = models.TextField(
+    street_address = models.CharField(
+        max_length=255,
         blank=True,
-        help_text="Physical address (optional)"
+        null=True,
+        help_text="Street address (e.g., 123 Main Street)"
+    )
+    suburb = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Suburb or neighborhood"
+    )
+    postal_code = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Postal/ZIP code (optional)"
+    )
+    
+    cv_document = models.FileField(
+        upload_to='candidate_cvs/%Y/%m/',  # Organized by year/month
+        blank=True,
+        null=True,
+        validators=[FileExtensionValidator(allowed_extensions=['pdf', 'docx'])],
+        help_text="Upload your CV/Resume (.pdf or .docx format only)"
+    )
+    cv_uploaded_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When CV was last uploaded"
     )
     
     # Professional Information
@@ -202,8 +227,16 @@ class UserProfile(models.Model):
     
     def get_full_address(self):
         """Return formatted full address"""
-        parts = [self.address, self.city, self.province]
-        return ", ".join([p for p in parts if p])
+        parts = [
+            self.street_address,
+            self.suburb,
+            self.city,
+            self.province
+        ]
+        address_str = ", ".join([p for p in parts if p])
+        if self.postal_code:
+            address_str += f" {self.postal_code}"
+        return address_str
     
     def is_profile_complete(self):
         """Check if all required fields are filled"""
@@ -213,10 +246,12 @@ class UserProfile(models.Model):
             self.national_id,
             self.province,
             self.city,
+            self.street_address,
             self.employment_status,
             self.education_level,
             self.terms_accepted,
-            self.data_processing_consent
+            self.data_processing_consent,
+            self.cv_document
         ]
         return all(required_fields)
     
@@ -224,6 +259,17 @@ class UserProfile(models.Model):
         """Override save to update profile_completed status"""
         self.profile_completed = self.is_profile_complete()
         super().save(*args, **kwargs)
+    
+    def has_valid_cv(self):
+        """Check if user has uploaded a valid CV"""
+        return bool(self.cv_document)
+    
+    def get_cv_filename(self):
+        """Get the original filename of the CV"""
+        if self.cv_document:
+            import os
+            return os.path.basename(self.cv_document.name)
+        return None
 
 class TestCategory(models.Model):
     """

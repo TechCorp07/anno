@@ -101,6 +101,44 @@ class CandidateRegistrationForm(UserCreationForm):
         })
     )
     
+    street_address = forms.CharField(
+        max_length=255,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent',
+            'placeholder': 'e.g., 123 Main Street, Apartment 4B'
+        }),
+        help_text='Your full street address'
+    )
+    
+    suburb = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent',
+            'placeholder': 'e.g., Avondale, Borrowdale'
+        }),
+        help_text='Suburb or neighborhood (optional)'
+    )
+    
+    postal_code = forms.CharField(
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent',
+            'placeholder': 'Postal code (optional)'
+        })
+    )
+    
+    cv_document = forms.FileField(
+        required=True,
+        widget=forms.FileInput(attrs={
+            'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100',
+            'accept': '.pdf,.docx'
+        }),
+        help_text='Upload your CV/Resume in PDF or DOCX format (Max 5MB)'
+    )
+    
     # Professional Information
     employment_status = forms.ChoiceField(
         choices=[
@@ -225,6 +263,23 @@ class CandidateRegistrationForm(UserCreationForm):
             raise forms.ValidationError("This National ID is already registered.")
         return national_id
     
+    def clean_cv_document(self):
+        """Validate CV file size and type"""
+        cv_file = self.cleaned_data.get('cv_document')
+        
+        if cv_file:
+            # Check file size (5MB limit)
+            if cv_file.size > 5 * 1024 * 1024:  # 5MB in bytes
+                raise forms.ValidationError("CV file size must be under 5MB.")
+            
+            # Check file extension
+            import os
+            ext = os.path.splitext(cv_file.name)[1].lower()
+            if ext not in ['.pdf', '.docx']:
+                raise forms.ValidationError("Only PDF and DOCX files are allowed.")
+        
+        return cv_file
+    
     def save(self, commit=True):
         """Save user and create profile with all additional fields"""
         user = super().save(commit=False)
@@ -247,7 +302,15 @@ class CandidateRegistrationForm(UserCreationForm):
             # Location
             profile.province = self.cleaned_data['province']
             profile.city = self.cleaned_data['city']
+            profile.street_address = self.cleaned_data['street_address']
+            profile.suburb = self.cleaned_data.get('suburb', '')
+            profile.postal_code = self.cleaned_data.get('postal_code', '')
             
+            # CV Upload
+            if self.cleaned_data.get('cv_document'):
+                profile.cv_document = self.cleaned_data['cv_document']
+                profile.cv_uploaded_at = timezone.now()
+                
             # Professional Information
             profile.employment_status = self.cleaned_data['employment_status']
             profile.current_employer = self.cleaned_data.get('current_employer', '')
@@ -266,3 +329,112 @@ class CandidateRegistrationForm(UserCreationForm):
             profile.save()
         
         return user
+
+
+class UserProfileUpdateForm(forms.ModelForm):
+    """
+    Form for existing users to update their profile information
+    Allows updating CV and address without re-registering
+    """
+    class Meta:
+        model = UserProfile
+        fields = [
+            'phone_number', 'date_of_birth', 'gender',
+            'street_address', 'suburb', 'city', 'province', 'postal_code',
+            'cv_document',
+            'employment_status', 'current_employer', 'years_of_experience',
+            'has_mri_experience', 'education_level', 'institution_attended',
+            'radiography_license_number', 'profile_photo'
+        ]
+        widgets = {
+            'phone_number': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': '+263771234567'
+            }),
+            'date_of_birth': forms.DateInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'type': 'date'
+            }),
+            'gender': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'street_address': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': '123 Main Street'
+            }),
+            'suburb': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Suburb name'
+            }),
+            'city': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'City/Town'
+            }),
+            'province': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'postal_code': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500',
+                'placeholder': 'Postal code'
+            }),
+            'cv_document': forms.FileInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100',
+                'accept': '.pdf,.docx'
+            }),
+            'employment_status': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'current_employer': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'years_of_experience': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'has_mri_experience': forms.CheckboxInput(attrs={
+                'class': 'w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+            }),
+            'education_level': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'institution_attended': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'radiography_license_number': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'
+            }),
+            'profile_photo': forms.FileInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100',
+                'accept': 'image/*'
+            }),
+        }
+    
+    def clean_cv_document(self):
+        """Validate CV file size and type"""
+        cv_file = self.cleaned_data.get('cv_document')
+        
+        if cv_file:
+            # Check file size (5MB limit)
+            if cv_file.size > 5 * 1024 * 1024:
+                raise forms.ValidationError("CV file size must be under 5MB.")
+            
+            # Check file extension
+            import os
+            ext = os.path.splitext(cv_file.name)[1].lower()
+            if ext not in ['.pdf', '.docx']:
+                raise forms.ValidationError("Only PDF and DOCX files are allowed.")
+        
+        return cv_file
+    
+    def save(self, commit=True):
+        """Save profile and update CV timestamp if new CV uploaded"""
+        profile = super().save(commit=False)
+        
+        # Update CV timestamp if new CV was uploaded
+        if self.cleaned_data.get('cv_document') and self.has_changed() and 'cv_document' in self.changed_data:
+            profile.cv_uploaded_at = timezone.now()
+        
+        if commit:
+            profile.save()
+        
+        return profile
+

@@ -4,14 +4,14 @@ Views for MRI Training Platform Assessment
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from assessment.utils import create_test_attempts_bulk
 from django.contrib.auth.models import User
-from .forms import CandidateRegistrationForm
+from .forms import CandidateRegistrationForm, UserProfileUpdateForm
 
 from .models import Test, TestAttempt, Question, Answer
 
@@ -24,7 +24,7 @@ def home(request):
 def register(request):
     """Enhanced candidate registration with comprehensive data collection"""
     if request.method == 'POST':
-        form = CandidateRegistrationForm(request.POST)
+        form = CandidateRegistrationForm(request.POST, request.FILES)
         if form.is_valid():
             user = form.save()
             login(request, user)
@@ -39,6 +39,33 @@ def register(request):
         form = CandidateRegistrationForm()
     
     return render(request, 'assessment/register.html', {'form': form})
+
+
+@login_required
+def user_profile(request):
+    """
+    User profile page where candidates can view and update their information
+    Allows existing users to upload CV and update address
+    """
+    profile = request.user.profile
+    
+    if request.method == 'POST':
+        form = UserProfileUpdateForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your profile has been updated successfully!')
+            return redirect('user_profile')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = UserProfileUpdateForm(instance=profile)
+    
+    context = {
+        'profile': profile,
+        'form': form,
+    }
+    
+    return render(request, 'assessment/user_profile.html', context)
 
 
 def login_view(request):

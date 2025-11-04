@@ -159,7 +159,7 @@
             </div>
             
             <!-- Form -->
-            <form method="post" id="registrationForm" novalidate>
+            <form method="post" enctype="multipart/form-data" class="space-y-8" id="registrationForm">
                 {% csrf_token %}
                 
                 <!-- Step 1: Account Information -->
@@ -239,6 +239,33 @@
                             <label class="form-label required-field">City/Town</label>
                             {{ form.city }}
                         </div>
+
+                        <div>
+                            <label class="form-label required-field">Street Address</label>
+                            {{ form.street_address }}
+                            {% if form.street_address.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.street_address.errors.0 }}</p>
+                            {% endif %}
+                            <p class="text-sm text-gray-500 mt-1">Your full street address</p>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">Suburb/Neighborhood</label>
+                            {{ form.suburb }}
+                            {% if form.suburb.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.suburb.errors.0 }}</p>
+                            {% endif %}
+                            <p class="text-sm text-gray-500 mt-1">Optional</p>
+                        </div>
+                        
+                        <div>
+                            <label class="form-label">Postal Code</label>
+                            {{ form.postal_code }}
+                            {% if form.postal_code.errors %}
+                                <p class="text-red-500 text-sm mt-1">{{ form.postal_code.errors.0 }}</p>
+                            {% endif %}
+                            <p class="text-sm text-gray-500 mt-1">Optional</p>
+                        </div>
                     </div>
                 </div>
                 
@@ -284,6 +311,39 @@
                                 {{ form.has_mri_experience }}
                                 <span class="text-sm text-gray-700">I have previous MRI experience</span>
                             </label>
+                        </div>
+
+                        <div class="col-span-2">
+                            <div class="border-t border-gray-200 pt-6 mt-6">
+                                <h3 class="text-lg font-semibold mb-4" style="color: var(--peakpoint-navy);">
+                                    📄 Curriculum Vitae (CV/Resume)
+                                </h3>
+                                
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                    <div class="flex items-start">
+                                        <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        <div>
+                                            <p class="text-sm text-blue-800 font-medium">Required Document</p>
+                                            <p class="text-xs text-blue-700 mt-1">
+                                                Please upload your CV in PDF or Word format. Maximum file size: 5MB
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="form-label required-field">Upload Your CV</label>
+                                    {{ form.cv_document }}
+                                    {% if form.cv_document.errors %}
+                                        <p class="text-red-500 text-sm mt-1">{{ form.cv_document.errors.0 }}</p>
+                                    {% endif %}
+                                    <p class="text-sm text-gray-500 mt-2">
+                                        Accepted formats: PDF (.pdf) or Word (.docx) • Max size: 5MB
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -564,6 +624,30 @@
         if (currentStep > 1) {
             currentStep--;
             showStep(currentStep);
+        }
+    });
+    
+    // CV File validation
+    document.querySelector('input[name="cv_document"]')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size must be under 5MB');
+                e.target.value = '';
+                return;
+            }
+            
+            // Check file type
+            const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            if (!validTypes.includes(file.type)) {
+                alert('Only PDF and DOCX files are allowed');
+                e.target.value = '';
+                return;
+            }
+            
+            // Show filename
+            console.log('CV uploaded:', file.name);
         }
     });
     
