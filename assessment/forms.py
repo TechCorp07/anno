@@ -404,7 +404,7 @@ class UserProfileUpdateForm(forms.ModelForm):
             }),
             'profile_photo': forms.FileInput(attrs={
                 'class': 'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100',
-                'accept': 'image/*'
+                'accept': '.jpg,.jpeg,.png'
             }),
         }
     
@@ -424,6 +424,23 @@ class UserProfileUpdateForm(forms.ModelForm):
                 raise forms.ValidationError("Only PDF and DOCX files are allowed.")
         
         return cv_file
+    
+    def clean_profile_photo(self):
+        """Validate profile photo file size and type"""
+        photo_file = self.cleaned_data.get('profile_photo')
+        
+        if photo_file:
+            # Check file size (1MB limit)
+            if photo_file.size > 1 * 1024 * 1024:  # 1MB in bytes
+                raise forms.ValidationError("Profile photo must be under 1MB.")
+            
+            # Check file extension
+            import os
+            ext = os.path.splitext(photo_file.name)[1].lower()
+            if ext not in ['.jpg', '.jpeg', '.png']:
+                raise forms.ValidationError("Only JPG, JPEG, and PNG files are allowed for profile photos.")
+        
+        return photo_file
     
     def save(self, commit=True):
         """Save profile and update CV timestamp if new CV uploaded"""

@@ -240,20 +240,34 @@ class UserProfile(models.Model):
     
     def is_profile_complete(self):
         """Check if all required fields are filled"""
-        required_fields = [
+        text_fields = [
             self.phone_number,
-            self.date_of_birth,
             self.national_id,
             self.province,
             self.city,
             self.street_address,
             self.employment_status,
             self.education_level,
-            self.terms_accepted,
-            self.data_processing_consent,
-            self.cv_document
         ]
-        return all(required_fields)
+        
+        # Check date field
+        if not self.date_of_birth:
+            return False
+        
+        # Check boolean fields (must be True, not just present)
+        if not self.terms_accepted or not self.data_processing_consent:
+            return False
+        
+        # Check file field
+        if not self.cv_document:
+            return False
+        
+        # Check all text fields are not empty
+        for field in text_fields:
+            if not field or (isinstance(field, str) and field.strip() == ''):
+                return False
+        
+        return True
     
     def save(self, *args, **kwargs):
         """Override save to update profile_completed status"""

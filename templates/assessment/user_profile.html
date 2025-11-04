@@ -444,5 +444,27 @@
             }
         }
     });
+
+    // Profile Photo validation
+    document.querySelector('input[name="profile_photo"]')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Check file size (1MB)
+            if (file.size > 1 * 1024 * 1024) {
+                alert('Profile photo must be under 1MB');
+                e.target.value = '';
+                return;
+            }
+            
+            // Check file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!validTypes.includes(file.type)) {
+                alert('Only JPG, JPEG, and PNG files are allowed for profile photos');
+                e.target.value = '';
+                return;
+            }
+        }
+    });
+    
 </script>
 {% endblock %}
