@@ -162,12 +162,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         // Start the timer NOW
-        if (window.testTimerComponent && typeof window.testTimerComponent.startTimer === 'function') {
-            console.log('⏱️ Starting exam timer NOW');
-            window.testTimerComponent.startTimer();
-        } else {
-            console.error('❌ Cannot start timer - component not found');
-        }
+        setTimeout(() => {
+            if (window.testTimerComponent && typeof window.testTimerComponent.startTimer === 'function') {
+                console.log('⏱️ Starting exam timer NOW (with server sync)');
+                window.testTimerComponent.startTimer();
+            } else {
+                console.error('❌ Cannot start timer - component not found');
+            }
+        }, 100);
 
         // Setup cleanup on page unload
         window.addEventListener('beforeunload', () => {
@@ -671,6 +673,7 @@ function testTimer(initialTime) {
         answers: {},
         isSubmitting: false,
         beforeUnloadHandler: null,
+        timerInterval: null,
         
         init() {
 
@@ -701,26 +704,59 @@ function testTimer(initialTime) {
             }
         },
         
-        startTimer() {
-            setInterval(() => {
+        async startTimer() {
+            console.log('⏱️ startTimer() called - syncing with server...');
+            
+            try {
+                // Fetch current time remaining from server to avoid time loss
+                const response = await fetch(`/attempt/{{ attempt.id }}/time/`);
+                const data = await response.json();
+                
+                if (data.time_remaining !== undefined) {
+                    this.timeRemaining = data.time_remaining;
+                    console.log(`⏱️ Time synced from server: ${data.time_remaining} seconds`);
+                } else {
+                    console.warn('⚠️ Could not sync time from server, using initial value');
+                }
+            } catch (error) {
+                console.error('❌ Error syncing time:', error);
+                console.log('⏱️ Proceeding with initial time value');
+            }
+            
+            // Now start the countdown
+            this.timerInterval = setInterval(() => {
                 if (this.timeRemaining > 0) {
                     this.timeRemaining--;
                 } else if (this.timeRemaining === 0 && !this.isSubmitting) {
                     this.isSubmitting = true;
-                    this.allowNavigation();  // Remove beforeunload
+                    this.allowNavigation();
                     
                     alert('⏰ Time is up! Your test will be submitted automatically.');
                     
-                    setTimeout(() => {
-                        document.querySelector('form').submit();
-                    }, 500);
+                    // Auto-submit
+                    document.getElementById('submitForm').submit();
                 }
             }, 1000);
+            
+            console.log('✅ Timer started successfully');
+        },
+
+        stopTimer() {
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+                console.log('⏱️ Timer stopped');
+            }
         },
         
         formatTime(seconds) {
-            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
             const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
             return `${minutes}:${secs.toString().padStart(2, '0')}`;
         },
         
