@@ -713,7 +713,7 @@ class ProctoringSystem {
             count: this.cameraDisabledCount,
             note: 'Camera was turned off during exam - AUTO-DISQUALIFICATION'
         });
-
+        
         // Disable interactions immediately
         document.body.style.pointerEvents = 'none';
         document.body.style.opacity = '0.5';
@@ -1025,12 +1025,9 @@ class ProctoringSystem {
                             `This incident has been logged.`);
                     }, 100);
                     
-                    // Force submission
-                    this.isDisqualified = true;
-                    document.body.style.pointerEvents = 'none';  // Disable first
-                    setTimeout(() => alert("..."), 100);  // Non-blocking
-                    await this.autoSubmitTestDisqualified(reason, count);
-                    
+                    // Force submission IMMEDIATELY
+                    await this.autoSubmitTestDisqualified('excessive_fullscreen_exits', this.fullscreenExitCount);
+
                 } else {
                     const remaining = this.maxFullscreenExits - this.fullscreenExitCount;
                     alert(`⚠️ WARNING: Fullscreen Exit #${this.fullscreenExitCount}/${this.maxFullscreenExits}\n\n` +

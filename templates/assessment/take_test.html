@@ -121,12 +121,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Initialize proctoring - MUST succeed for exam to start
-    try {
-        const proctoring = new ProctoringSystem(
-            {{ attempt.id }},
-            180,
-            '{{ csrf_token }}'
-        );
+    try 
+    {
+            const proctoring = new ProctoringSystem(
+                {{ attempt.id }},
+                180,
+                '{{ csrf_token }}'
+            );
         
         const initialized = await proctoring.initialize();
         
@@ -159,7 +160,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (examContent) {
             examContent.style.display = 'block';
         }
-        
+
+        // Start the timer NOW
+        if (window.testTimerComponent && typeof window.testTimerComponent.startTimer === 'function') {
+            console.log('⏱️ Starting exam timer NOW');
+            window.testTimerComponent.startTimer();
+        } else {
+            console.error('❌ Cannot start timer - component not found');
+        }
+
         // Setup cleanup on page unload
         window.addEventListener('beforeunload', () => {
             if (proctoring) {
@@ -167,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
         
-    } catch (error) {
+      } catch (error) {
         console.error('❌ EXAM BLOCKED: Proctoring error:', error);
         
         // Hide loading screen
@@ -182,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (examContent) {
             examContent.remove();
         }
-    }
+      }
     
     // Track which DICOM questions have images
     {% for question in questions %}
@@ -664,7 +673,6 @@ function testTimer(initialTime) {
         beforeUnloadHandler: null,
         
         init() {
-            this.startTimer();
 
             this.beforeUnloadHandler = (e) => {
                 // CRITICAL: Allow navigation if proctoring is auto-submitting
