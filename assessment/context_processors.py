@@ -4,20 +4,16 @@ Makes profile completion data available in all templates
 """
 
 def profile_completion(request):
-    """
-    Make profile completion data available in all templates.
-    
-    This context processor adds profile completion information to the context
-    of every template, allowing the base template and other templates to 
-    display profile completion status without explicitly passing it in views.
-    
-    Returns:
-        dict: Contains 'profile_completion' with percentage, completed_count,
-              total_count, missing_fields, and is_complete status
-    """
     if request.user.is_authenticated:
         try:
-            profile = request.user.profile
+            from assessment.models import UserProfile
+            
+            # Try to get profile, create if doesn't exist
+            try:
+                profile = request.user.profile
+            except UserProfile.DoesNotExist:
+                # Create profile if it doesn't exist
+                profile = UserProfile.objects.create(user=request.user)
             
             # Required fields for profile completion
             required_fields = {
@@ -58,7 +54,7 @@ def profile_completion(request):
                 }
             }
         except Exception as e:
-            # If profile doesn't exist or any error occurs, return empty data
+            # If any error occurs, return safe defaults
             # This prevents template errors
             return {
                 'profile_completion': {

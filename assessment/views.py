@@ -21,7 +21,13 @@ def get_profile_completion_data(user):
     Calculate profile completion percentage and missing fields
     Returns: dict with percentage, completed_count, total_count, missing_fields
     """
-    profile = user.profile
+    from .models import UserProfile
+    
+    try:
+        profile = user.profile
+    except UserProfile.DoesNotExist:
+        # Create profile if it doesn't exist
+        profile = UserProfile.objects.create(user=user)
     
     # Required fields for profile completion
     required_fields = {
@@ -143,7 +149,7 @@ def dashboard(request):
     # Get available tests for user
     available_tests = Test.objects.filter(
         is_active=True,
-        cohort__members=request.user
+        category__cohorts__members__user=request.user
     ).distinct()
     
     # Get past test attempts
