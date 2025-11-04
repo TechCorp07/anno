@@ -18,6 +18,7 @@ class ProctoringSystem {
         this.maxFullscreenExits = 3;
         this.submittingDisqualification = false;
         this.cameraDisabledCount = 0;
+        this.beforeUnloadHandler = null;
 
         // NEW: Fullscreen restoration
         this.fullscreenRetryAttempts = 0;
@@ -695,7 +696,7 @@ class ProctoringSystem {
     /**
      * Handle camera being disabled during exam
      */
-    handleCameraDisabled() {
+    async handleCameraDisabled() {
         console.error('🚨 CRITICAL: Camera stream stopped during exam!');
 
         if (this.cameraDisabledWarningShown) {
@@ -706,7 +707,7 @@ class ProctoringSystem {
         this.isDisqualified = true;
         this.cameraDisabledCount = (this.cameraDisabledCount || 0) + 1;
         
-        this.logEvent('camera_disabled', {
+        await this.logEvent('camera_disabled', {
             severity: 'critical',
             timestamp: new Date().toISOString(),
             count: this.cameraDisabledCount,
@@ -727,8 +728,8 @@ class ProctoringSystem {
         }, 100);
         
         // Auto-submit immediately
-        this.autoSubmitTestDisqualified('camera_disabled_during_exam', this.cameraDisabledCount);
-        this.showCameraDisabledWarning();
+        await this.autoSubmitTestDisqualified('camera_disabled_during_exam', this.cameraDisabledCount);
+        //this.showCameraDisabledWarning();
     }
     
     /**
@@ -1125,6 +1126,27 @@ class ProctoringSystem {
             return;
         }
         this.submittingDisqualification = true;
+
+        // CRITICAL: Remove beforeunload handler to allow navigation
+        console.log('🔓 Removing beforeunload handler...');
+        window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+
+        // Also try to access Alpine.js component if available
+        try {
+            const formElement = document.querySelector('form');
+            if (formElement && formElement._x_dataStack) {
+                const alpineData = formElement._x_dataStack[0];
+                if (alpineData && alpineData.allowNavigation) {
+                    console.log('✓ Found Alpine.js allowNavigation - calling it');
+                    alpineData.allowNavigation();
+                }
+            }
+        } catch (e) {
+            console.log('⚠️ Could not access Alpine.js component, continuing anyway');
+        }
+
+        // Set global flag to bypass any beforeunload checks
+        window.proctoringAutoSubmitting = true;
         
         // Log the disqualification event
         await this.logEvent('exam_disqualified', {

@@ -667,6 +667,12 @@ function testTimer(initialTime) {
             this.startTimer();
 
             this.beforeUnloadHandler = (e) => {
+                // CRITICAL: Allow navigation if proctoring is auto-submitting
+                if (window.proctoringAutoSubmitting) {
+                    console.log('✓ Proctoring auto-submit detected - allowing navigation');
+                    return undefined;
+                }
+                
                 if (!this.isSubmitting) {
                     e.preventDefault();
                     e.returnValue = 'Changes you made may not be saved.';
@@ -675,6 +681,9 @@ function testTimer(initialTime) {
             };
 
             window.addEventListener('beforeunload', this.beforeUnloadHandler);
+
+            // Make Alpine component globally accessible for proctoring
+            window.testTimerComponent = this;
         },
 
         allowNavigation() {
