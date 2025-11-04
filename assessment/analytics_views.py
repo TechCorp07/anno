@@ -67,7 +67,7 @@ def admin_analytics_dashboard(request):
             
             if all_passed and avg_user_score >= 80:
                 # Get cohort info
-                cohort_membership = user.cohortmembership_set.first()
+                cohort_membership = user.cohort_memberships.first()
                 cohort_name = cohort_membership.cohort.name if cohort_membership else "N/A"
                 
                 certification_ready.append({
@@ -95,7 +95,7 @@ def admin_analytics_dashboard(request):
         
         if total_user_attempts >= 2 and failed_count >= 2:
             avg_user_score = user_attempts.aggregate(Avg('score'))['score__avg']
-            cohort_membership = user.cohortmembership_set.first()
+            cohort_membership = user.cohort_memberships.first()
             cohort_name = cohort_membership.cohort.name if cohort_membership else "N/A"
             
             struggling_candidates.append({
@@ -146,7 +146,7 @@ def admin_analytics_dashboard(request):
                 'name': cohort.name,
                 'avg_score': float(avg_cohort_score),
                 'pass_rate': round(pass_rate, 1),
-                'total_members': cohort.cohortmembership_set.count(),
+                'total_members': cohort.members.count(),
                 'completed_tests': cohort_attempts.count()
             })
     
