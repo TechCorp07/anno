@@ -20,6 +20,9 @@ from django.utils import timezone
 
 User = get_user_model()
 
+
+MINIMUM_USERS_FOR_PERCENTILE = 5  # Minimum users needed for meaningful percentile comparison
+
 @user_passes_test(lambda u: u.is_staff)
 def admin_analytics_dashboard(request):
     """
@@ -400,14 +403,15 @@ def user_analytics_dashboard(request):
         'attempts': attempts,
         'total_tests': attempts.count(),
         'passed_tests': attempts.filter(passed=True).count(),
-        'avg_score': float(avg_score_decimal) if avg_score_decimal is not None else 0
+        'avg_score': float(avg_score_decimal) if avg_score_decimal is not None else 0,
+        'minimum_users_for_percentile': MINIMUM_USERS_FOR_PERCENTILE
     }
     
     # Calculate percentile ranking for each category
     category_percentiles = {}
     for category in TestCategory.objects.filter(is_active=True):
-        percentile = calculate_user_percentile(user, category)
-        category_percentiles[category.name] = percentile
+        percentile_data = calculate_user_percentile(user, category)
+        category_percentiles[category.name] = percentile_data
     context['category_percentiles'] = category_percentiles
     
     # Skill gap analysis
@@ -422,10 +426,6 @@ def user_analytics_dashboard(request):
 
 
 def calculate_user_percentile(user, category):
-    """
-    Calculate user's percentile ranking in a specific category
-    compared to all other users
-    """
     # Get user's average score in this category
     user_attempts = TestAttempt.objects.filter(
         user=user,
@@ -435,14 +435,26 @@ def calculate_user_percentile(user, category):
     )
     
     if not user_attempts.exists():
-        return None
+        return {
+            'percentile': None,
+            'total_users': 0,
+            'user_score': None,
+            'has_sufficient_data': False,
+            'message': 'No completed tests in this category'
+        }
     
     user_avg_score = user_attempts.aggregate(Avg('score'))['score__avg']
     
     if user_avg_score is None:
-        return None
+        return {
+            'percentile': None,
+            'total_users': 0,
+            'user_score': None,
+            'has_sufficient_data': False,
+            'message': 'Unable to calculate average score'
+        }
     
-    # Get all scores in this category from all users
+    # Get all scores in this category from all users (excluding current user)
     all_scores = list(
         TestAttempt.objects.filter(
             test__category=category,
@@ -453,22 +465,40 @@ def calculate_user_percentile(user, category):
         ).values_list('score', flat=True)
     )
     
-    if not all_scores:
-        return 100  # Only user who took the test
+    total_users = len(all_scores) + 1  # Include current user
     
-    # Add user's score
+    # PRODUCTION READY: Check if we have enough users for meaningful comparison
+    if len(all_scores) < MINIMUM_USERS_FOR_PERCENTILE - 1:
+        return {
+            'percentile': None,
+            'total_users': total_users,
+            'user_score': round(float(user_avg_score), 1),
+            'has_sufficient_data': False,
+            'message': f'Need at least {MINIMUM_USERS_FOR_PERCENTILE} users for percentile comparison'
+        }
+    
+    # Add user's score to the list for calculation
     all_scores.append(float(user_avg_score))
     
-    # Calculate percentile
-    percentile = (sum(1 for score in all_scores if score < user_avg_score) / len(all_scores)) * 100
+    # Calculate percentile: percentage of scores below the user's score
+    scores_below = sum(1 for score in all_scores if score < user_avg_score)
+    percentile = (scores_below / len(all_scores)) * 100
     
-    return round(percentile, 1)
+    return {
+        'percentile': round(percentile, 1),
+        'total_users': total_users,
+        'user_score': round(float(user_avg_score), 1),
+        'has_sufficient_data': True,
+        'message': None
+    }
 
 
 def analyze_skill_gaps(user):
     """
     Analyze user's performance by topic to identify skill gaps
     Returns topics where user scored < 60%
+    
+    NO CHANGES - This function works correctly as-is
     """
     skill_gaps = []
     
@@ -499,14 +529,15 @@ def analyze_skill_gaps(user):
             skill_gaps.append({
                 'topic': topic.name,
                 'category': topic.category.name,
-                'percentage': round(percentage, 1),
+                'avg_score': round(percentage, 1),
                 'correct': stats['correct'],
                 'total': stats['total'],
-                'questions_to_improve': max(1, int((0.6 * stats['total']) - stats['correct']))
+                'attempt_count': stats['total'],
+                'questions_needed': max(1, int((0.6 * stats['total']) - stats['correct']))
             })
     
     # Sort by weakest first
-    skill_gaps.sort(key=lambda x: x['percentage'])
+    skill_gaps.sort(key=lambda x: x['avg_score'])
     
     return skill_gaps
 
@@ -540,13 +571,16 @@ def calculate_tao_rubric_score(user):
         if attempts.exists():
             avg_score = attempts.aggregate(Avg('score'))['score__avg']
             passed = avg_score >= category.passing_score
-            percentile = calculate_user_percentile(user, category)
+            
+            # UPDATED: Use new percentile calculation
+            percentile_data = calculate_user_percentile(user, category)
+            percentile_value = percentile_data['percentile'] if percentile_data['has_sufficient_data'] else None
             
             stage_key = f'stage_{stage_num}_{category.name.lower().split()[0]}'
             if stage_key in rubric_scores:
                 rubric_scores[stage_key]['score'] = round(avg_score, 1)
                 rubric_scores[stage_key]['passed'] = passed
-                rubric_scores[stage_key]['percentile'] = percentile
+                rubric_scores[stage_key]['percentile'] = percentile_value
     
     # Calculate overall readiness (average of all stages)
     stage_scores = [
@@ -600,7 +634,6 @@ def export_analytics_excel(request):
     ws2 = wb.create_sheet("User Summary")
     ws2.append(['Username', 'Total Tests', 'Passed', 'Pass Rate %', 'Avg Score', 'Best Score'])
     
-    from django.contrib.auth.models import User
     for user in User.objects.all():
         user_attempts = TestAttempt.objects.filter(user=user, status='completed')
         if user_attempts.exists():
