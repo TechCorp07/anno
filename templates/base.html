@@ -209,7 +209,9 @@
                                                 <span style="font-size: 0.7rem; color: white; font-weight: 700;">
                                                     {% if user.profile.profile_completed %}100%{% else %}
                                                         <!-- Calculate percentage - this should come from context -->
-                                                        <span id="profile-completion-pct">--</span>%
+                                                        <span id="profile-completion-pct">
+                                                            {% if profile_completion %}{{ profile_completion.percentage }}{% else %}--{% endif %}
+                                                        </span>%
                                                     {% endif %}
                                                 </span>
                                             </div>
