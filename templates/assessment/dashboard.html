@@ -15,6 +15,11 @@
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     }
     
+    a:hover .profile-tooltip {
+        opacity: 1 !important;
+        bottom: -110px !important;
+    }
+    
     .dashboard-header {
         background: linear-gradient(135deg, var(--peakpoint-navy) 0%, var(--peakpoint-dark) 100%);
         padding: 3rem 2rem;
@@ -345,6 +350,181 @@
             <span>Welcome back, {{ user.get_full_name|default:user.username }}!</span>
         </h1>
         <p class="welcome-subtitle">Ready to continue your MRI training journey?</p>
+    </div>
+</div>
+
+<!-- Profile Status Card -->
+{% if not user.profile.profile_completed or not user.profile.cv_document %}
+<div class="dashboard-content">
+    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.07);">
+        <div style="display: flex; align-items: start; gap: 1rem;">
+            <div style="flex-shrink: 0;">
+                <svg style="width: 48px; height: 48px; color: #f59e0b;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div style="flex: 1;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #92400e; margin-bottom: 0.5rem;">
+                    ⚠️ Profile Incomplete
+                </h3>
+                <p style="color: #78350f; margin-bottom: 1rem;">
+                    {% if not user.profile.cv_document %}
+                        Your CV has not been uploaded yet. 
+                    {% endif %}
+                    {% if not user.profile.street_address %}
+                        Your address information is missing.
+                    {% endif %}
+                    Please complete your profile to ensure you can proceed with all assessments.
+                </p>
+                <a href="{% url 'user_profile' %}" style="display: inline-flex; align-items: center; gap: 0.5rem; background: #f59e0b; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; text-decoration: none; transition: all 0.3s ease;">
+                    <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                    Complete Your Profile Now
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Quick Access Cards - ADD THIS NEW SECTION -->
+<div class="dashboard-content" style="margin-bottom: 2rem;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        
+        <!-- Profile Card -->
+        <a href="{% url 'user_profile' %}" style="text-decoration: none;">
+            <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 2px solid transparent; cursor: pointer; position: relative; overflow: hidden;">
+                
+                <!-- Completion Badge - Top Right -->
+                <div style="position: absolute; top: 1rem; right: 1rem;">
+                    {% if profile_completion.is_complete %}
+                        <span style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.75rem; background: #d1fae5; color: #065f46; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                            <svg style="width: 14px; height: 14px;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            </svg>
+                            Complete
+                        </span>
+                    {% else %}
+                        <span style="display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.75rem; background: #fef3c7; color: #92400e; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                            <svg style="width: 14px; height: 14px;" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            {{ profile_completion.percentage }}%
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Header -->
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding-right: 4rem;">
+                    <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <svg style="width: 28px; height: 28px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1.25rem; font-weight: 700; color: #1f2937; margin: 0;">My Profile</h3>
+                        <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">
+                            {{ profile_completion.completed_count }} of {{ profile_completion.total_count }} fields complete
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div style="margin-bottom: 1rem;">
+                    <div style="width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;">
+                        <div style="width: {{ profile_completion.percentage }}%; height: 100%; background: linear-gradient(90deg, {% if profile_completion.percentage == 100 %}#10b981{% elif profile_completion.percentage >= 70 %}#3b82f6{% elif profile_completion.percentage >= 40 %}#f59e0b{% else %}#ef4444{% endif %} 0%, {% if profile_completion.percentage == 100 %}#059669{% elif profile_completion.percentage >= 70 %}#2563eb{% elif profile_completion.percentage >= 40 %}#d97706{% else %}#dc2626{% endif %} 100%); transition: width 0.5s ease;"></div>
+                    </div>
+                </div>
+                
+                <!-- Status Footer -->
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                    <div>
+                        {% if profile_completion.is_complete %}
+                            <span style="font-size: 0.875rem; color: #059669; font-weight: 600;">✓ Profile complete</span>
+                        {% else %}
+                            <span style="font-size: 0.875rem; color: #d97706; font-weight: 600;">
+                                {{ profile_completion.missing_fields|length }} field{{ profile_completion.missing_fields|length|pluralize }} remaining
+                            </span>
+                        {% endif %}
+                    </div>
+                    <svg style="width: 20px; height: 20px; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+                
+                <!-- Tooltip on hover - show missing fields -->
+                {% if not profile_completion.is_complete %}
+                <div style="position: absolute; bottom: -100px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.75rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,0.2);" class="profile-tooltip">
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">Missing Fields:</div>
+                    {% for field in profile_completion.missing_fields %}
+                        <div>• {{ field }}</div>
+                    {% endfor %}
+                    <!-- Arrow -->
+                    <div style="position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid #1f2937;"></div>
+                </div>
+                {% endif %}
+            </div>
+        </a>
+        
+        <!-- Analytics Card -->
+        <a href="{% url 'user_analytics' %}" style="text-decoration: none;">
+            <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 2px solid transparent; cursor: pointer;">
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg style="width: 24px; height: 24px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1.125rem; font-weight: 700; color: #1f2937; margin: 0;">My Analytics</h3>
+                        <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">Track your progress</p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                    <span style="font-size: 0.875rem; color: #6b7280;">View detailed stats</span>
+                    <svg style="width: 20px; height: 20px; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </div>
+        </a>
+        
+        <!-- CV Status Card -->
+        <a href="{% url 'user_profile' %}" style="text-decoration: none;">
+            <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.3s ease; border: 2px solid transparent; cursor: pointer;">
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, {% if user.profile.cv_document %}#10b981{% else %}#f59e0b{% endif %} 0%, {% if user.profile.cv_document %}#059669{% else %}#d97706{% endif %} 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <svg style="width: 24px; height: 24px; color: white;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 1.125rem; font-weight: 700; color: #1f2937; margin: 0;">CV Status</h3>
+                        <p style="font-size: 0.875rem; color: #6b7280; margin: 0;">
+                            {% if user.profile.cv_document %}
+                                Uploaded
+                            {% else %}
+                                Not uploaded
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                    {% if user.profile.cv_document %}
+                        <span style="font-size: 0.875rem; color: #059669; font-weight: 600;">View or update</span>
+                    {% else %}
+                        <span style="font-size: 0.875rem; color: #d97706; font-weight: 600;">Upload now</span>
+                    {% endif %}
+                    <svg style="width: 20px; height: 20px; color: #9ca3af;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </div>
+            </div>
+        </a>
+        
     </div>
 </div>
 

@@ -50,7 +50,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             )
         }),
         ('Location', {
-            'fields': ('province', 'city', 'address')
+            'fields': ('street_address', 'suburb', 'city', 'province', 'postal_code')
         }),
         ('Professional Background', {
             'fields': (

@@ -16,6 +16,51 @@ from .forms import CandidateRegistrationForm, UserProfileUpdateForm
 from .models import Test, TestAttempt, Question, Answer
 
 
+def get_profile_completion_data(user):
+    """
+    Calculate profile completion percentage and missing fields
+    Returns: dict with percentage, completed_count, total_count, missing_fields
+    """
+    profile = user.profile
+    
+    # Required fields for profile completion
+    required_fields = {
+        'phone_number': 'Phone Number',
+        'date_of_birth': 'Date of Birth',
+        'national_id': 'National ID',
+        'province': 'Province',
+        'city': 'City',
+        'street_address': 'Street Address',
+        'employment_status': 'Employment Status',
+        'education_level': 'Education Level',
+        'terms_accepted': 'Terms Accepted',
+        'data_processing_consent': 'Data Processing Consent',
+        'cv_document': 'CV Document',
+    }
+    
+    completed_fields = []
+    missing_fields = []
+    
+    for field, label in required_fields.items():
+        value = getattr(profile, field, None)
+        if value:
+            completed_fields.append(label)
+        else:
+            missing_fields.append(label)
+    
+    total_count = len(required_fields)
+    completed_count = len(completed_fields)
+    percentage = int((completed_count / total_count) * 100)
+    
+    return {
+        'percentage': percentage,
+        'completed_count': completed_count,
+        'total_count': total_count,
+        'missing_fields': missing_fields,
+        'is_complete': percentage == 100
+    }
+
+
 def home(request):
     """Home page"""
     return render(request, 'assessment/home.html')
@@ -94,14 +139,27 @@ def logout_view(request):
 
 @login_required
 def dashboard(request):
-    """User dashboard showing available tests and past attempts"""
-    available_tests = Test.objects.filter(is_active=True)
-    past_attempts = TestAttempt.objects.filter(user=request.user)[:10]
+    """Enhanced dashboard with profile completion tracking"""
+    # Get available tests for user
+    available_tests = Test.objects.filter(
+        is_active=True,
+        cohort__members=request.user
+    ).distinct()
+    
+    # Get past test attempts
+    past_attempts = TestAttempt.objects.filter(
+        user=request.user
+    ).select_related('test').order_by('-started_at')[:5]
+    
+    # Get profile completion data
+    profile_completion = get_profile_completion_data(request.user)
     
     context = {
         'available_tests': available_tests,
         'past_attempts': past_attempts,
+        'profile_completion': profile_completion,  # NEW!
     }
+    
     return render(request, 'assessment/dashboard.html', context)
 
 
