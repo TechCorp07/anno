@@ -424,8 +424,10 @@ function submitDICOMAnswer(questionId, coordinates) {
             <h2 class="text-2xl font-bold text-gray-800 mb-2">Initializing Proctoring</h2>
             <p class="text-gray-600">Please allow camera and microphone access...</p>
             <p class="text-sm text-gray-500 mt-4">This may take a few seconds</p>
+            <p class="text-xs text-gray-400 mt-2">⏱️ Your exam time will start AFTER initialization completes</p>
         </div>
     </div>
+
  <div id="exam-content" style="display: none;">
 <div class="content-wrapper" x-data="testTimer({{ time_remaining }})">
     <!-- Timer and Header -->
@@ -438,7 +440,7 @@ function submitDICOMAnswer(questionId, coordinates) {
             <div class="text-right">
                 <div class="text-sm text-gray-600 mb-1">Time Remaining</div>
                 <div class="text-3xl font-bold" 
-                     :class="timeRemaining < 60 ? 'text-red-600' : timeRemaining < 300 ? 'text-yellow-600' : 'text-gray-800'"
+                     :class="timeRemaining < 60 ? 'text-red-600' : timeRemaining < 300 ? 'text-yellow-600' : 'text-green-600'"
                      x-text="formatTime(timeRemaining)">
                 </div>
             </div>
