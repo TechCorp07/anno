@@ -53,4 +53,5 @@ urlpatterns = [
     # Admin Analytics (staff only)
     path('admin-analytics/', analytics_views.admin_analytics_dashboard, name='admin_analytics'),
     path('admin-analytics/export/', analytics_views.export_analytics_excel, name='export_analytics'),
+    path('admin-analytics/export-pdf/', analytics_views.export_analytics_pdf, name='export_analytics_pdf'),
 ]

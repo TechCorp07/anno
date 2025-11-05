@@ -695,7 +695,7 @@ class TestAttempt(models.Model):
         ordering = ['-started_at']
         indexes = [
             models.Index(fields=['user', 'test']),
-            models.Index(fields=['status']),
+            models.Index(fields=['status', 'completed_at']),
             models.Index(fields=['flagged_for_plagiarism']),
         ]
     
