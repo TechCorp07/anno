@@ -172,7 +172,7 @@ def admin_analytics_dashboard(request):
         'date_to': date_to,
     }
     
-    return render(request, 'admin/admin_analytics_enhanced.html', context)
+    return render(request, 'admin/admin_analytics.html', context)
 
 
 def calculate_user_percentile(user, category):
@@ -522,6 +522,7 @@ def calculate_question_statistics(attempts_qs):
     # Item Discrimination Index (simplified)
     # Top 27% vs Bottom 27% comparison
     all_scores = list(attempts_qs.values_list('score', flat=True))
+    all_scores = [float(s) for s in all_scores if s is not None]
     if len(all_scores) >= 10:
         top_27_threshold = np.percentile(all_scores, 73)
         bottom_27_threshold = np.percentile(all_scores, 27)
