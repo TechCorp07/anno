@@ -366,7 +366,7 @@ def calculate_basic_statistics(attempts_qs):
         }
     
     passed_attempts = attempts_qs.filter(passed=True).count()
-    pass_rate = (passed_attempts / total_attempts * 100) if total_attempts > 0 else 0
+    pass_rate = (float(passed_attempts) / float(total_attempts) * 100) if total_attempts > 0 else 0
     failure_rate = 100 - pass_rate
     
     return {
@@ -440,7 +440,8 @@ def calculate_time_statistics(attempts_qs):
         return {}
     
     time_seconds = attempts_with_time.values_list('time_spent_seconds', flat=True)
-    time_minutes = [t / 60 for t in time_seconds if t]
+    
+    time_minutes = [float(t) / 60 for t in time_seconds if t]
     
     if not time_minutes:
         return {}
@@ -478,7 +479,7 @@ def calculate_question_statistics(attempts_qs):
     
     # Get all answers for completed attempts
     answers = Answer.objects.filter(
-        test_attempt__in=attempts_qs,
+        attempt__in=attempts_qs,
         question__isnull=False
     ).select_related('question')
     
@@ -551,24 +552,24 @@ def calculate_discrimination_indices(attempts_qs, top_threshold, bottom_threshol
     
     for question in questions:
         top_correct = Answer.objects.filter(
-            test_attempt__in=top_group,
+            attempt__in=top_group,
             question=question,
             is_correct=True
         ).count()
-        
+
         bottom_correct = Answer.objects.filter(
-            test_attempt__in=bottom_group,
+            attempt__in=bottom_group,
             question=question,
             is_correct=True
         ).count()
-        
+
         top_total = Answer.objects.filter(
-            test_attempt__in=top_group,
+            attempt__in=top_group,
             question=question
         ).count()
-        
+
         bottom_total = Answer.objects.filter(
-            test_attempt__in=bottom_group,
+            attempt__in=bottom_group,
             question=question
         ).count()
         
@@ -611,7 +612,9 @@ def calculate_section_statistics(attempts_qs):
         category_attempts = attempts_qs.filter(test__category=category)
         
         if category_attempts.exists():
-            avg_score = category_attempts.aggregate(Avg('score'))['score__avg']
+            avg_score_decimal = category_attempts.aggregate(Avg('score'))['score__avg']
+            avg_score = float(avg_score_decimal) if avg_score_decimal else 0
+            
             pass_rate = category_attempts.filter(passed=True).count() / category_attempts.count() * 100
             
             # Calculate difficulty index (100 - average score)
@@ -682,10 +685,10 @@ def calculate_completion_statistics(attempts_qs):
             })
     
     # Skipped questions
-    total_questions_seen = Answer.objects.filter(test_attempt__in=attempts_qs).count()
+    total_questions_seen = Answer.objects.filter(attempt__in=attempts_qs).count()
     skipped_questions = Answer.objects.filter(
-        test_attempt__in=attempts_qs,
-        selected_option__isnull=True
+        attempt__in=attempts_qs,
+        selected_answer__isnull=True
     ).count()
     
     skipped_rate = (skipped_questions / total_questions_seen * 100) if total_questions_seen > 0 else 0
@@ -809,7 +812,7 @@ def calculate_reliability_metrics(attempts_qs):
     
     for question in questions:
         answers = Answer.objects.filter(
-            test_attempt__in=attempts_qs,
+            attempt__in=attempts_qs,
             question=question
         )
         
