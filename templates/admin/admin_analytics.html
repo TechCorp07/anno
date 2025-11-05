@@ -93,23 +93,39 @@
     
     .filter-group select {
         width: 100%;
-        padding: 12px 16px;
-        /* WHITE BACKGROUND WITH DARK TEXT */
+        /* INCREASED PADDING */
+        padding: 14px 16px !important;
+        padding-right: 45px !important;
+        
+        /* EXPLICIT HEIGHT for consistency */
+        min-height: 52px !important;
+        height: 52px !important;
+        
         background-color: #ffffff !important;
         color: #1f2937 !important;
-        border: 2px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        /* Add dropdown arrow */
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23374151'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        background-size: 20px;
-        padding-right: 40px;
+        
+        border: 2px solid #d1d5db !important;
+        border-radius: 8px !important;
+        
+        /* INCREASED font size */
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        line-height: 1.5 !important;
+        
+        cursor: pointer !important;
+        
+        /* Remove default appearance */
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        
+        /* Custom dropdown arrow */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23374151'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 14px center !important;
+        background-size: 22px !important;
+        
+        transition: all 0.2s ease !important;
     }
 
     .filter-group select:hover {
@@ -127,8 +143,9 @@
     .filter-group select option {
         background-color: #ffffff !important;
         color: #1f2937 !important;
-        padding: 10px;
-        font-weight: 500;
+        padding: 12px 16px !important;
+        font-weight: 500 !important;
+        font-size: 1rem !important;
     }
 
     .filter-group input {
@@ -147,36 +164,50 @@
     
     .filter-group input[type="date"] {
         width: 100%;
-        padding: 12px 16px;
-        background-color: #ffffff;
-        color: #1f2937;
-        border: 2px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
+        /* SAME PADDING as select */
+        padding: 14px 16px !important;
+        
+        /* SAME HEIGHT as select */
+        min-height: 52px !important;
+        height: 52px !important;
+        
+        background-color: #ffffff !important;
+        color: #1f2937 !important;
+        
+        border: 2px solid #d1d5db !important;
+        border-radius: 8px !important;
+        
+        /* SAME font size */
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+        line-height: 1.5 !important;
+        
+        transition: all 0.2s ease !important;
     }
 
+    .filter-group select:hover,
     .filter-group input[type="date"]:hover {
-        border-color: #667eea;
-        background-color: #f9fafb;
+        border-color: #667eea !important;
+        background-color: #f9fafb !important;
     }
 
+    .filter-group select:focus,
     .filter-group input[type="date"]:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        outline: none !important;
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+        background-color: #ffffff !important;
     }
 
     .btn {
-        padding: 12px 24px;
+        padding: 14px 28px !important;
+        min-height: 52px !important;
         border: none;
         border-radius: 8px;
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 1rem;
         cursor: pointer;
         transition: all 0.2s ease;
-        text-decoration: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
