@@ -1,726 +1,581 @@
-/**
- * FIXED: DICOM Viewer with proper canvas rendering
- * Handles both DICOM (.dcm) and regular images (PNG/JPG)
- */
-
-class DICOMViewer {
-    constructor(elementId, dicomUrl, hotspotRegions = []) {
-        this.element = document.getElementById(elementId);
-        this.dicomUrl = dicomUrl;
-        this.hotspotRegions = hotspotRegions || [];
+class DICOMViewer3D {
+    constructor(containerId, dicomUrls, options = {}) {
+        this.container = document.getElementById(containerId);
+        this.dicomUrls = Array.isArray(dicomUrls) ? dicomUrls : [dicomUrls];
+        this.options = {
+            enableHotspots: options.enableHotspots || false,
+            hotspotRegions: options.hotspotRegions || [],
+            showCrosshairs: options.showCrosshairs !== false,
+            allowWindowLevel: options.allowWindowLevel !== false,
+            allowPan: options.allowPan !== false,
+            allowZoom: options.allowZoom !== false,
+            onCoordinateClick: options.onCoordinateClick || null,
+            ...options
+        };
+        
+        this.renderingEngineId = 'MRIViewer_' + Math.random().toString(36).substr(2, 9);
+        this.viewportIds = {
+            axial: 'AXIAL',
+            sagittal: 'SAGITTAL',
+            coronal: 'CORONAL'
+        };
+        
+        this.renderingEngine = null;
+        this.volume = null;
+        this.volumeId = 'VOLUME_' + Date.now();
         this.clickedCoordinates = null;
-        this.imageId = null;
-        this.viewport = null;
-        this.canvas = null;
-        this.onCoordinateClick = null;
-        this.usingNativeCanvas = false;  // Flag for fallback mode
-        this.nativeImage = null;         // Store native image if using fallback
-        this.nativeState = null;         // Store zoom/pan state for native mode
     }
     
     async initialize() {
         try {
-            console.log('Starting DICOM viewer initialization...');
+            console.log('Initializing 3D DICOM Viewer...');
             
-            if (typeof cornerstone === 'undefined') {
-                throw new Error('Cornerstone library not loaded');
+            // Verify Cornerstone3D is loaded
+            if (typeof cornerstone3D === 'undefined') {
+                throw new Error('Cornerstone3D library not loaded');
             }
             
-            // Setup canvas FIRST
-            this.setupCanvas();
+            // Create the UI layout
+            this.createLayout();
             
-            // Register image loader
-            this.registerImageLoader();
+            // Initialize Cornerstone3D
+            await this.initializeCornerstone();
             
-            // Load image
-            await this.loadImage();
+            // Load the DICOM volume
+            await this.loadVolume();
+            
+            // Setup viewports
+            await this.setupViewports();
             
             // Setup interactions
             this.setupInteractions();
             
-            console.log('✓ DICOM Viewer initialized successfully');
+            console.log('✓ 3D DICOM Viewer initialized successfully');
             return true;
+            
         } catch (error) {
-            console.error('Failed to initialize DICOM viewer:', error);
-            this.showError('Unable to load image: ' + error.message);
+            console.error('Failed to initialize 3D DICOM viewer:', error);
+            this.showError(error.message);
             return false;
         }
     }
     
-    setupCanvas() {
-        console.log('Setting up canvas...');
+    createLayout() {
+        this.container.innerHTML = `
+            <div class="mpr-viewer-container">
+                <!-- Controls Bar -->
+                <div class="mpr-controls">
+                    <div class="control-group">
+                        <button id="resetBtn" class="control-btn" title="Reset All Views">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" stroke-width="2"/>
+                                <path d="M21 3v5h-5" stroke-width="2"/>
+                            </svg>
+                            Reset
+                        </button>
+                        <button id="windowLevelBtn" class="control-btn" title="Adjust Window/Level">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
+                                <path d="M3 9h18M9 3v18" stroke-width="2"/>
+                            </svg>
+                            W/L
+                        </button>
+                        <button id="syncBtn" class="control-btn active" title="Sync Crosshairs">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                                <path d="M12 2v20M2 12h20" stroke-width="2"/>
+                            </svg>
+                            Sync
+                        </button>
+                    </div>
+                    <div class="coordinate-display" id="coordDisplay">
+                        <span>Hover over image to see coordinates</span>
+                    </div>
+                </div>
+                
+                <!-- MPR Grid Layout -->
+                <div class="mpr-grid">
+                    <!-- Axial View (Top-Down) -->
+                    <div class="mpr-viewport" id="viewport-axial">
+                        <div class="viewport-label">
+                            <span class="label-text">AXIAL</span>
+                            <span class="label-subtext">Top-Down View</span>
+                        </div>
+                        <div id="${this.viewportIds.axial}" class="viewport-canvas"></div>
+                    </div>
+                    
+                    <!-- Sagittal View (Left-Right) -->
+                    <div class="mpr-viewport" id="viewport-sagittal">
+                        <div class="viewport-label">
+                            <span class="label-text">SAGITTAL</span>
+                            <span class="label-subtext">Left-Right View</span>
+                        </div>
+                        <div id="${this.viewportIds.sagittal}" class="viewport-canvas"></div>
+                    </div>
+                    
+                    <!-- Coronal View (Front-Back) -->
+                    <div class="mpr-viewport" id="viewport-coronal">
+                        <div class="viewport-label">
+                            <span class="label-text">CORONAL</span>
+                            <span class="label-subtext">Front-Back View</span>
+                        </div>
+                        <div id="${this.viewportIds.coronal}" class="viewport-canvas"></div>
+                    </div>
+                    
+                    <!-- 3D Volume Rendering (Optional) -->
+                    <div class="mpr-viewport" id="viewport-3d">
+                        <div class="viewport-label">
+                            <span class="label-text">3D VOLUME</span>
+                            <span class="label-subtext">Volume Render</span>
+                        </div>
+                        <div class="viewport-canvas viewport-3d-placeholder">
+                            <div class="placeholder-content">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z" stroke-width="2"/>
+                                    <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke-width="2"/>
+                                </svg>
+                                <p>3D Volume Rendering</p>
+                                <small>Available in full version</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    async initializeCornerstone() {
+        const { init, volumeLoader, Enums } = cornerstone3D;
         
-        // Clear existing content
-        this.element.innerHTML = '';
+        // Initialize Cornerstone3D
+        await init();
+        console.log('✓ Cornerstone3D initialized');
         
-        // Create canvas element
-        this.canvas = document.createElement('canvas');
-        
-        // CRITICAL FIX: Set explicit dimensions based on container
-        const containerWidth = this.element.offsetWidth || 700;
-        const containerHeight = this.element.offsetHeight || 500;
-        
-        console.log(`Container dimensions: ${containerWidth}x${containerHeight}`);
-        
-        // Set canvas internal dimensions (affects rendering resolution)
-        this.canvas.width = containerWidth;
-        this.canvas.height = containerHeight;
-        
-        // Set canvas display dimensions via CSS
-        this.canvas.style.width = '100%';
-        this.canvas.style.height = '100%';
-        this.canvas.style.display = 'block';
-        
-        // CRITICAL FIX: White background for transparent PNGs
-        this.canvas.style.backgroundColor = '#ffffff';
-        
-        // Fill canvas with white to handle transparency
-        const ctx = this.canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Add to DOM
-        this.element.appendChild(this.canvas);
-        
-        // Enable Cornerstone on this canvas
+        // Register volume loader for DICOM files
+        // Note: In production, you'd use cornerstone3DTools.volumeLoader
+        // For now, we'll handle single DICOM or image stacks
+    }
+    
+    async loadVolume() {
         try {
-            cornerstone.enable(this.canvas);
-            console.log('✓ Canvas enabled for Cornerstone');
-        } catch (error) {
-            console.error('Failed to enable canvas:', error);
-            throw error;
-        }
-    }
-    
-    registerImageLoader() {
-        console.log('Registering image loaders...');
-        
-        // Check if web image loader is available
-        if (typeof cornerstoneWebImageLoader === 'undefined') {
-            console.error('❌ cornerstoneWebImageLoader not loaded!');
-            throw new Error('Web image loader library not loaded');
-        }
-        
-        // Set cornerstone reference for web image loader
-        cornerstoneWebImageLoader.external.cornerstone = cornerstone;
-        
-        // FORCE registration (even if already registered)
-        try {
-            cornerstone.registerImageLoader('http', cornerstoneWebImageLoader.loadImage);
-            cornerstone.registerImageLoader('https', cornerstoneWebImageLoader.loadImage);
-            console.log('✓ Web image loaders registered for http/https');
-        } catch (error) {
-            console.warn('Image loader registration warning (may already be registered):', error);
-        }
-    }
-    
-    async loadImage() {
-        console.log('Loading image from:', this.dicomUrl);
-        
-        // Check if this is a DICOM file or regular image
-        const isDicom = this.dicomUrl.endsWith('.dcm');
-        
-        if (isDicom) {
-            // Use Cornerstone for DICOM files
-            await this.loadWithCornerstone();
-        } else {
-            // Try Cornerstone first, fallback to native if it fails
-            try {
-                await this.loadWithCornerstone();
-                
-                // Verify the image actually rendered
-                const hasPixels = this.verifyImageRendered();
-                if (!hasPixels) {
-                    console.warn('⚠️ Cornerstone did not render pixels, trying native method...');
-                    await this.loadWithNativeCanvas();
-                }
-            } catch (error) {
-                console.warn('⚠️ Cornerstone failed, trying native method:', error.message);
-                await this.loadWithNativeCanvas();
-            }
-        }
-    }
-    
-    /**
-     * Verify that the canvas actually has image pixels rendered
-     */
-    verifyImageRendered() {
-        try {
-            const ctx = this.canvas.getContext('2d');
-            const imageData = ctx.getImageData(
-                Math.floor(this.canvas.width / 2), 
-                Math.floor(this.canvas.height / 2), 
-                1, 1
-            );
-            const data = imageData.data;
+            const { utilities, Enums } = cornerstone3D;
             
-            // Check if pixel is not just white/black/transparent
-            const isWhite = data[0] === 255 && data[1] === 255 && data[2] === 255;
-            const isBlack = data[0] === 0 && data[1] === 0 && data[2] === 0;
-            const isTransparent = data[3] === 0;
-            
-            if (isWhite || isBlack || isTransparent) {
-                // Check a few more pixels to be sure
-                let coloredPixelCount = 0;
-                const samples = [[50, 50], [100, 100], [150, 150]];
-                
-                samples.forEach(([x, y]) => {
-                    if (x < this.canvas.width && y < this.canvas.height) {
-                        const sampleData = ctx.getImageData(x, y, 1, 1).data;
-                        if (!(sampleData[0] === 255 && sampleData[1] === 255 && sampleData[2] === 255) &&
-                            !(sampleData[0] === 0 && sampleData[1] === 0 && sampleData[2] === 0) &&
-                            sampleData[3] !== 0) {
-                            coloredPixelCount++;
-                        }
-                    }
-                });
-                
-                return coloredPixelCount > 0;
-            }
-            
-            return true; // Has colored pixels
-        } catch (error) {
-            console.warn('Could not verify pixels:', error);
-            return true; // Assume it worked
-        }
-    }
-    
-    /**
-     * Load image using Cornerstone (for DICOM or as first attempt for PNG/JPG)
-     */
-    async loadWithCornerstone() {
-        console.log('Attempting Cornerstone loading...');
-        
-        // Determine image type and create proper imageId
-        if (this.dicomUrl.endsWith('.dcm')) {
-            // DICOM file
-            this.imageId = 'wadouri:' + this.dicomUrl;
-        } else {
-            // PNG/JPG - convert to absolute URL
-            this.imageId = this.makeAbsoluteUrl(this.dicomUrl);
-        }
-        
-        console.log('Image ID:', this.imageId);
-        
-        // Load the image
-        const image = await cornerstone.loadImage(this.imageId);
-        console.log(`✓ Image loaded: ${image.width}x${image.height} (min: ${image.minPixelValue}, max: ${image.maxPixelValue})`);
-        
-        // CRITICAL FIX: Resize canvas to match image aspect ratio
-        this.resizeCanvasForImage(image);
-        
-        // Display the image
-        await cornerstone.displayImage(this.canvas, image);
-        console.log('✓ Image displayed on canvas');
-        
-        // CRITICAL FIX: Reset and fit viewport to show the entire image
-        cornerstone.reset(this.canvas);
-        console.log('✓ Viewport reset');
-        
-        // Fit image to canvas
-        cornerstone.fitToWindow(this.canvas);
-        console.log('✓ Image fitted to window');
-        
-        // ADDITIONAL FIX: Manually adjust viewport (especially for PNG/JPG)
-        this.adjustViewportForImage();
-        console.log('✓ Viewport adjusted');
-        
-        // Get the viewport after fitting
-        this.viewport = cornerstone.getViewport(this.canvas);
-        console.log('✓ Viewport after fit:', this.viewport);
-        
-        // Force multiple redraws to ensure visibility
-        cornerstone.draw(this.canvas);
-        
-        // Additional draw after a brief delay (sometimes needed)
-        setTimeout(() => {
-            try {
-                cornerstone.draw(this.canvas);
-                console.log('✓ Secondary draw completed');
-            } catch (e) {
-                console.warn('Secondary draw failed:', e);
-            }
-        }, 100);
-    }
-    
-    /**
-     * Load image using native HTML5 Canvas API (fallback for PNG/JPG)
-     */
-    async loadWithNativeCanvas() {
-        console.log('🔄 Loading with native canvas method...');
-        
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            
-            img.onload = () => {
-                console.log(`✓ Native image loaded: ${img.width}x${img.height}`);
-                
-                // Resize canvas to fit image
-                const containerWidth = this.element.offsetWidth || 700;
-                const containerHeight = this.element.offsetHeight || 500;
-                const imageAspect = img.width / img.height;
-                const containerAspect = containerWidth / containerHeight;
-                
-                let canvasWidth, canvasHeight;
-                if (imageAspect > containerAspect) {
-                    canvasWidth = containerWidth;
-                    canvasHeight = containerWidth / imageAspect;
-                } else {
-                    canvasHeight = containerHeight;
-                    canvasWidth = containerHeight * imageAspect;
-                }
-                
-                this.canvas.width = Math.floor(canvasWidth);
-                this.canvas.height = Math.floor(canvasHeight);
-                console.log(`Canvas resized to ${this.canvas.width}x${this.canvas.height}`);
-                
-                // Draw white background
-                const ctx = this.canvas.getContext('2d');
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                // Draw image centered
-                ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
-                console.log('✓ Image drawn to canvas with native method');
-                
-                // Store image reference for later use
-                this.nativeImage = img;
-                this.usingNativeCanvas = true;
-                
-                resolve();
-            };
-            
-            img.onerror = (error) => {
-                console.error('❌ Native image load failed:', error);
-                reject(new Error('Failed to load image with native method'));
-            };
-            
-            img.src = this.makeAbsoluteUrl(this.dicomUrl);
-        });
-    }
-    
-    resizeCanvasForImage(image) {
-        // Calculate aspect ratio
-        const imageAspect = image.width / image.height;
-        const containerWidth = this.element.offsetWidth || 700;
-        const containerHeight = this.element.offsetHeight || 500;
-        
-        let canvasWidth, canvasHeight;
-        
-        // Fit image to container while maintaining aspect ratio
-        const containerAspect = containerWidth / containerHeight;
-        
-        if (imageAspect > containerAspect) {
-            // Image is wider - fit to width
-            canvasWidth = containerWidth;
-            canvasHeight = containerWidth / imageAspect;
-        } else {
-            // Image is taller - fit to height
-            canvasHeight = containerHeight;
-            canvasWidth = containerHeight * imageAspect;
-        }
-        
-        console.log(`Resizing canvas to ${canvasWidth}x${canvasHeight} for image ${image.width}x${image.height}`);
-        
-        // Update canvas dimensions
-        this.canvas.width = Math.floor(canvasWidth);
-        this.canvas.height = Math.floor(canvasHeight);
-        
-        // Also ensure the canvas is visible
-        this.canvas.style.display = 'block';
-        this.canvas.style.backgroundColor = '#000';
-    }
-    
-    makeAbsoluteUrl(url) {
-        // Convert relative URL to absolute URL
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-            return url;
-        }
-        
-        const baseUrl = window.location.origin;
-        if (url.startsWith('/')) {
-            return baseUrl + url;
-        } else {
-            return baseUrl + '/' + url;
-        }
-    }
-    
-    /**
-     * Manually adjust viewport for images that don't render properly
-     * This is a fallback for PNG/JPG images
-     */
-    adjustViewportForImage() {
-        try {
-            const enabledElement = cornerstone.getEnabledElement(this.canvas);
-            const image = enabledElement.image;
-            const viewport = cornerstone.getViewport(this.canvas);
-            
-            console.log('Adjusting viewport for image...');
-            console.log('  Image type:', image.color ? 'Color (RGB/RGBA)' : 'Grayscale');
-            console.log('  Has alpha:', image.rgba ? 'Yes' : 'No');
-            
-            // For PNG/JPG images, ensure proper window/level
-            if (image.color) {
-                // Color image - set standard RGB window/level
-                console.log('Color image detected, setting standard viewport');
-                
-                // For transparent PNGs, we may need to adjust
-                viewport.voi = {
-                    windowWidth: 255,
-                    windowCenter: 128
-                };
-                
+            // For single DICOM or image stack
+            if (this.dicomUrls.length === 1) {
+                // Single slice - create pseudo-volume
+                this.volumeId = await this.createImageStackVolume();
             } else {
-                // Grayscale - may need window/level adjustment
-                console.log('Grayscale image, adjusting viewport...');
-                
-                // Set window/level based on image min/max
-                const windowWidth = image.maxPixelValue - image.minPixelValue;
-                const windowCenter = (image.maxPixelValue + image.minPixelValue) / 2;
-                
-                viewport.voi = {
-                    windowWidth: windowWidth,
-                    windowCenter: windowCenter
-                };
-                
-                console.log(`Setting VOI - Width: ${windowWidth}, Center: ${windowCenter}`);
+                // Multiple slices - create proper volume
+                this.volumeId = await this.createMultiSliceVolume();
             }
             
-            // Ensure scale is appropriate
-            if (viewport.scale < 0.1 || viewport.scale > 10) {
-                viewport.scale = 1.0;
-                console.log('Reset scale to 1.0');
-            }
-            
-            // Apply the viewport
-            cornerstone.setViewport(this.canvas, viewport);
-            cornerstone.draw(this.canvas);
-            
-            console.log('✓ Viewport applied:', viewport);
+            console.log('✓ Volume loaded:', this.volumeId);
             
         } catch (error) {
-            console.warn('Could not adjust viewport:', error);
+            console.error('Error loading volume:', error);
+            throw new Error('Failed to load DICOM data');
         }
+    }
+    
+    async createImageStackVolume() {
+        // For single image or PNG/JPG, create a pseudo 3D volume
+        const { cache, volumeLoader } = cornerstone3D;
+        
+        // Create image IDs
+        const imageIds = this.dicomUrls.map(url => {
+            if (url.endsWith('.dcm')) {
+                return 'wadouri:' + url;
+            } else {
+                return url.startsWith('http') ? url : window.location.origin + url;
+            }
+        });
+        
+        return imageIds[0]; // For now, return single image ID
+    }
+    
+    async createMultiSliceVolume() {
+        // Create volume from multiple DICOM slices
+        const { volumeLoader } = cornerstone3D;
+        
+        const imageIds = this.dicomUrls.map(url => 'wadouri:' + url);
+        
+        const volume = await volumeLoader.createAndCacheVolume(this.volumeId, {
+            imageIds: imageIds
+        });
+        
+        await volume.load();
+        
+        return this.volumeId;
+    }
+    
+    async setupViewports() {
+        const { 
+            RenderingEngine, 
+            Enums, 
+            setVolumesForViewports 
+        } = cornerstone3D;
+        
+        // Create rendering engine
+        this.renderingEngine = new RenderingEngine(this.renderingEngineId);
+        
+        // Define viewport configurations for MPR
+        const viewportInputArray = [
+            {
+                viewportId: this.viewportIds.axial,
+                type: Enums.ViewportType.ORTHOGRAPHIC,
+                element: document.getElementById(this.viewportIds.axial),
+                defaultOptions: {
+                    orientation: Enums.OrientationAxis.AXIAL,
+                    background: [0, 0, 0]
+                }
+            },
+            {
+                viewportId: this.viewportIds.sagittal,
+                type: Enums.ViewportType.ORTHOGRAPHIC,
+                element: document.getElementById(this.viewportIds.sagittal),
+                defaultOptions: {
+                    orientation: Enums.OrientationAxis.SAGITTAL,
+                    background: [0, 0, 0]
+                }
+            },
+            {
+                viewportId: this.viewportIds.coronal,
+                type: Enums.ViewportType.ORTHOGRAPHIC,
+                element: document.getElementById(this.viewportIds.coronal),
+                defaultOptions: {
+                    orientation: Enums.OrientationAxis.CORONAL,
+                    background: [0, 0, 0]
+                }
+            }
+        ];
+        
+        // Create viewports
+        this.renderingEngine.setViewports(viewportInputArray);
+        
+        console.log('✓ Viewports created');
+        
+        // Set volume for all viewports
+        await this.setVolumeForViewports();
+        
+        // Render all viewports
+        this.renderingEngine.renderViewports([
+            this.viewportIds.axial,
+            this.viewportIds.sagittal,
+            this.viewportIds.coronal
+        ]);
+        
+        console.log('✓ Viewports rendered');
+    }
+    
+    async setVolumeForViewports() {
+        const { setVolumesForViewports } = cornerstone3D;
+        
+        // For single image, we need different approach
+        // Set the same image data to all 3 viewports
+        const axialViewport = this.renderingEngine.getViewport(this.viewportIds.axial);
+        const sagittalViewport = this.renderingEngine.getViewport(this.viewportIds.sagittal);
+        const coronalViewport = this.renderingEngine.getViewport(this.viewportIds.coronal);
+        
+        // For demonstration with single image
+        // Each viewport will show the same 2D slice
+        // In production with real DICOM stack, this would show different planes
+        
+        const imageId = this.volumeId;
+        
+        await axialViewport.setImageIds([imageId]);
+        await sagittalViewport.setImageIds([imageId]);
+        await coronalViewport.setImageIds([imageId]);
     }
     
     setupInteractions() {
-        // Click handler for coordinate capture
-        this.canvas.addEventListener('click', (event) => {
-            this.handleClick(event);
-        });
+        const { utilities } = cornerstone3D;
         
-        if (this.usingNativeCanvas) {
-            // Native canvas mode - implement basic zoom/pan
-            this.setupNativeInteractions();
-        } else {
-            // Cornerstone mode - use Cornerstone's interactions
-            this.setupCornerstoneInteractions();
+        // Setup tools (zoom, pan, window/level)
+        this.setupTools();
+        
+        // Setup crosshair synchronization
+        if (this.options.showCrosshairs) {
+            this.setupCrosshairs();
         }
-    }
-    
-    setupNativeInteractions() {
-        let scale = 1.0;
-        let translateX = 0;
-        let translateY = 0;
         
-        // Zoom with mouse wheel
-        this.canvas.addEventListener('wheel', (event) => {
-            event.preventDefault();
-            const delta = event.deltaY < 0 ? 0.1 : -0.1;
-            scale = Math.max(0.1, Math.min(10, scale + delta));
-            this.redrawNativeCanvas(scale, translateX, translateY);
-        });
+        // Setup coordinate tracking
+        this.setupCoordinateTracking();
         
-        // Pan with drag
-        let isDragging = false;
-        let lastX, lastY;
-        
-        this.canvas.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
-            this.canvas.style.cursor = 'grabbing';
-        });
-        
-        this.canvas.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                const deltaX = e.clientX - lastX;
-                const deltaY = e.clientY - lastY;
-                translateX += deltaX;
-                translateY += deltaY;
-                this.redrawNativeCanvas(scale, translateX, translateY);
-                lastX = e.clientX;
-                lastY = e.clientY;
-            }
-        });
-        
-        this.canvas.addEventListener('mouseup', () => {
-            isDragging = false;
-            this.canvas.style.cursor = 'crosshair';
-        });
-        
-        this.canvas.addEventListener('mouseleave', () => {
-            isDragging = false;
-            this.canvas.style.cursor = 'crosshair';
-        });
-        
-        // Store state for redrawing
-        this.nativeState = { scale, translateX, translateY };
-    }
-    
-    redrawNativeCanvas(scale, translateX, translateY) {
-        if (!this.nativeImage) return;
-        
-        const ctx = this.canvas.getContext('2d');
-        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Fill background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Apply transform
-        ctx.translate(translateX, translateY);
-        ctx.scale(scale, scale);
-        
-        // Draw image
-        ctx.drawImage(this.nativeImage, 0, 0, this.canvas.width / scale, this.canvas.height / scale);
-        
-        // Store state
-        this.nativeState = { scale, translateX, translateY };
-    }
-    
-    setupCornerstoneInteractions() {
-        // Zoom with mouse wheel
-        this.canvas.addEventListener('wheel', (event) => {
-            event.preventDefault();
-            const viewport = cornerstone.getViewport(this.canvas);
-            const delta = event.deltaY < 0 ? 0.1 : -0.1;
-            viewport.scale = Math.max(0.1, Math.min(10, viewport.scale + delta));
-            cornerstone.setViewport(this.canvas, viewport);
-        });
-        
-        // Pan with drag
-        let isDragging = false;
-        let lastX, lastY;
-        
-        this.canvas.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
-            this.canvas.style.cursor = 'grabbing';
-        });
-        
-        this.canvas.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                const deltaX = e.clientX - lastX;
-                const deltaY = e.clientY - lastY;
-                const viewport = cornerstone.getViewport(this.canvas);
-                viewport.translation.x += deltaX;
-                viewport.translation.y += deltaY;
-                cornerstone.setViewport(this.canvas, viewport);
-                lastX = e.clientX;
-                lastY = e.clientY;
-            }
-        });
-        
-        this.canvas.addEventListener('mouseup', () => {
-            isDragging = false;
-            this.canvas.style.cursor = 'crosshair';
-        });
-        
-        this.canvas.addEventListener('mouseleave', () => {
-            isDragging = false;
-            this.canvas.style.cursor = 'crosshair';
-        });
-    }
-    
-    handleClick(event) {
-        const rect = this.canvas.getBoundingClientRect();
-        const canvasX = event.clientX - rect.left;
-        const canvasY = event.clientY - rect.top;
-        
-        // Convert to image coordinates
-        const imageCoords = this.canvasToImageCoordinates(canvasX, canvasY);
-        
-        this.clickedCoordinates = {
-            x: Math.round(imageCoords.x),
-            y: Math.round(imageCoords.y)
-        };
-        
-        console.log('Clicked at:', this.clickedCoordinates);
-        
-        // Draw marker
-        this.drawClickMarker(canvasX, canvasY);
-        
-        // Callback
-        if (this.onCoordinateClick) {
-            const hitHotspot = this.checkHotspotHit(this.clickedCoordinates);
-            this.onCoordinateClick(this.clickedCoordinates, hitHotspot);
+        // Setup click handlers for hotspots
+        if (this.options.enableHotspots) {
+            this.setupHotspotClick();
         }
+        
+        // Setup control buttons
+        this.setupControls();
     }
     
-    canvasToImageCoordinates(canvasX, canvasY) {
-        try {
-            if (this.usingNativeCanvas && this.nativeImage) {
-                // Native canvas mode - direct mapping
-                const scaleX = this.nativeImage.width / this.canvas.width;
-                const scaleY = this.nativeImage.height / this.canvas.height;
+    setupTools() {
+        // Add cornerstoneTools initialization here
+        // For now, basic mouse interactions
+        
+        Object.values(this.viewportIds).forEach(viewportId => {
+            const element = document.getElementById(viewportId);
+            if (!element) return;
+            
+            // Mouse wheel for scrolling through slices
+            element.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                // Implement slice scrolling
+            });
+            
+            // Middle mouse for pan
+            let isPanning = false;
+            let lastX = 0;
+            let lastY = 0;
+            
+            element.addEventListener('mousedown', (e) => {
+                if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+                    isPanning = true;
+                    lastX = e.clientX;
+                    lastY = e.clientY;
+                    e.preventDefault();
+                }
+            });
+            
+            element.addEventListener('mousemove', (e) => {
+                if (isPanning) {
+                    const deltaX = e.clientX - lastX;
+                    const deltaY = e.clientY - lastY;
+                    
+                    const viewport = this.renderingEngine.getViewport(viewportId);
+                    const camera = viewport.getCamera();
+                    
+                    // Pan camera
+                    camera.position[0] -= deltaX * 0.5;
+                    camera.position[1] += deltaY * 0.5;
+                    
+                    viewport.setCamera(camera);
+                    viewport.render();
+                    
+                    lastX = e.clientX;
+                    lastY = e.clientY;
+                }
+            });
+            
+            element.addEventListener('mouseup', () => {
+                isPanning = false;
+            });
+        });
+    }
+    
+    setupCrosshairs() {
+        // Implement crosshair synchronization between views
+        // When user clicks on one view, show crosshairs on all views
+        
+        Object.entries(this.viewportIds).forEach(([name, viewportId]) => {
+            const element = document.getElementById(viewportId);
+            if (!element) return;
+            
+            element.addEventListener('mousemove', (e) => {
+                const rect = element.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
                 
-                return {
-                    x: Math.max(0, Math.min(this.nativeImage.width, canvasX * scaleX)),
-                    y: Math.max(0, Math.min(this.nativeImage.height, canvasY * scaleY))
+                // Calculate world coordinates
+                const viewport = this.renderingEngine.getViewport(viewportId);
+                const canvas = viewport.getCanvas();
+                
+                // Draw crosshairs on all other viewports
+                this.updateCrosshairs(viewportId, x, y);
+            });
+        });
+    }
+    
+    updateCrosshairs(sourceViewportId, x, y) {
+        // Draw crosshairs on all viewports except source
+        // This provides visual feedback of where you are in 3D space
+        
+        Object.entries(this.viewportIds).forEach(([name, viewportId]) => {
+            if (viewportId === sourceViewportId) return;
+            
+            const viewport = this.renderingEngine.getViewport(viewportId);
+            // Draw crosshair lines
+            // Implementation depends on Cornerstone3D annotation tools
+        });
+    }
+    
+    setupCoordinateTracking() {
+        Object.entries(this.viewportIds).forEach(([name, viewportId]) => {
+            const element = document.getElementById(viewportId);
+            if (!element) return;
+            
+            element.addEventListener('mousemove', (e) => {
+                const rect = element.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Get viewport
+                const viewport = this.renderingEngine.getViewport(viewportId);
+                
+                // Convert canvas coordinates to world coordinates
+                const worldPos = viewport.canvasToWorld([x, y]);
+                
+                // Update display
+                const coordDisplay = document.getElementById('coordDisplay');
+                if (coordDisplay && worldPos) {
+                    coordDisplay.innerHTML = `
+                        <strong>${name.toUpperCase()}:</strong> 
+                        X: ${worldPos[0].toFixed(1)}mm, 
+                        Y: ${worldPos[1].toFixed(1)}mm, 
+                        Z: ${worldPos[2].toFixed(1)}mm
+                    `;
+                }
+            });
+        });
+    }
+    
+    setupHotspotClick() {
+        Object.entries(this.viewportIds).forEach(([name, viewportId]) => {
+            const element = document.getElementById(viewportId);
+            if (!element) return;
+            
+            element.addEventListener('click', (e) => {
+                const rect = element.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Get viewport
+                const viewport = this.renderingEngine.getViewport(viewportId);
+                
+                // Convert to world coordinates
+                const worldPos = viewport.canvasToWorld([x, y]);
+                
+                this.clickedCoordinates = {
+                    viewport: name,
+                    canvas: { x, y },
+                    world: worldPos
                 };
-            } else {
-                // Cornerstone mode
-                const viewport = cornerstone.getViewport(this.canvas);
-                const enabledElement = cornerstone.getEnabledElement(this.canvas);
-                const image = enabledElement.image;
                 
-                // Account for scale and translation
-                const imageX = (canvasX - viewport.translation.x) / viewport.scale;
-                const imageY = (canvasY - viewport.translation.y) / viewport.scale;
+                // Check if click hit any hotspot
+                const hitHotspot = this.checkHotspotHit(worldPos);
                 
-                return {
-                    x: Math.max(0, Math.min(image.width, imageX)),
-                    y: Math.max(0, Math.min(image.height, imageY))
-                };
-            }
-        } catch (error) {
-            console.warn('Coordinate conversion error:', error);
-            return { x: canvasX, y: canvasY };
-        }
+                // Callback
+                if (this.options.onCoordinateClick) {
+                    this.options.onCoordinateClick(this.clickedCoordinates, hitHotspot);
+                }
+                
+                // Visual feedback
+                this.drawClickMarker(viewportId, x, y, hitHotspot);
+            });
+        });
     }
     
-    checkHotspotHit(coords) {
-        for (const hotspot of this.hotspotRegions) {
-            if (coords.x >= hotspot.x && 
-                coords.x <= hotspot.x + hotspot.width &&
-                coords.y >= hotspot.y && 
-                coords.y <= hotspot.y + hotspot.height) {
+    checkHotspotHit(worldPos) {
+        // Check if clicked position is within any hotspot region
+        for (const hotspot of this.options.hotspotRegions) {
+            if (this.isPointInHotspot(worldPos, hotspot)) {
                 return hotspot;
             }
         }
         return null;
     }
     
-    drawClickMarker(x, y) {
-        try {
-            if (this.usingNativeCanvas) {
-                // Native canvas mode - need to redraw image first
-                const ctx = this.canvas.getContext('2d');
-                
-                // Redraw background and image
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                ctx.drawImage(this.nativeImage, 0, 0, this.canvas.width, this.canvas.height);
-                
-                // Draw marker on top
-                ctx.strokeStyle = '#00ff00';
-                ctx.lineWidth = 3;
-                ctx.shadowColor = '#00ff00';
-                ctx.shadowBlur = 10;
-                
-                // Draw crosshair
-                ctx.beginPath();
-                ctx.moveTo(x - 20, y);
-                ctx.lineTo(x + 20, y);
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.moveTo(x, y - 20);
-                ctx.lineTo(x, y + 20);
-                ctx.stroke();
-                
-                // Draw circle
-                ctx.beginPath();
-                ctx.arc(x, y, 12, 0, 2 * Math.PI);
-                ctx.stroke();
-                
-                ctx.shadowBlur = 0;
-                
-            } else {
-                // Cornerstone mode
-                cornerstone.draw(this.canvas);
-                
-                const ctx = this.canvas.getContext('2d');
-                ctx.strokeStyle = '#00ff00';
-                ctx.lineWidth = 3;
-                ctx.shadowColor = '#00ff00';
-                ctx.shadowBlur = 10;
-                
-                // Draw crosshair
-                ctx.beginPath();
-                ctx.moveTo(x - 20, y);
-                ctx.lineTo(x + 20, y);
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.moveTo(x, y - 20);
-                ctx.lineTo(x, y + 20);
-                ctx.stroke();
-                
-                // Draw circle
-                ctx.beginPath();
-                ctx.arc(x, y, 12, 0, 2 * Math.PI);
-                ctx.stroke();
-                
-                ctx.shadowBlur = 0;
-            }
-            
-        } catch (error) {
-            console.warn('Could not draw marker:', error);
-        }
+    isPointInHotspot(point, hotspot) {
+        // Simple rectangular hotspot check
+        // Extend this for more complex shapes
+        const [x, y, z] = point;
+        
+        return (
+            x >= hotspot.x && x <= hotspot.x + hotspot.width &&
+            y >= hotspot.y && y <= hotspot.y + hotspot.height
+        );
     }
     
-    showError(message) {
-        this.element.innerHTML = `
-            <div class="flex items-center justify-center h-full bg-red-900 text-red-200 rounded-lg">
-                <div class="text-center p-6">
-                    <svg class="mx-auto h-12 w-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <p class="text-red-300 font-semibold mb-2">Image Viewer Error</p>
-                    <p class="text-sm text-red-400">${message}</p>
-                </div>
-            </div>
+    drawClickMarker(viewportId, x, y, isHotspot) {
+        const element = document.getElementById(viewportId);
+        if (!element) return;
+        
+        // Create temporary marker
+        const marker = document.createElement('div');
+        marker.className = 'click-marker' + (isHotspot ? ' hotspot-hit' : '');
+        marker.style.cssText = `
+            position: absolute;
+            left: ${x - 10}px;
+            top: ${y - 10}px;
+            width: 20px;
+            height: 20px;
+            border: 3px solid ${isHotspot ? '#00ff00' : '#ff0000'};
+            border-radius: 50%;
+            pointer-events: none;
+            animation: markerPulse 0.5s ease-out;
         `;
+        
+        element.parentElement.appendChild(marker);
+        
+        // Remove after animation
+        setTimeout(() => marker.remove(), 500);
     }
     
-    resetView() {
-        try {
-            if (this.usingNativeCanvas) {
-                // Reset native canvas state
-                this.redrawNativeCanvas(1.0, 0, 0);
-                console.log('✓ Native canvas view reset');
-            } else {
-                // Reset Cornerstone viewport
-                cornerstone.reset(this.canvas);
-                this.viewport = cornerstone.getViewport(this.canvas);
-                console.log('✓ Cornerstone view reset');
-            }
-        } catch (error) {
-            console.error('Reset error:', error);
+    setupControls() {
+        // Reset button
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetAllViews());
         }
+        
+        // Window/Level button
+        const windowLevelBtn = document.getElementById('windowLevelBtn');
+        if (windowLevelBtn) {
+            windowLevelBtn.addEventListener('click', () => this.toggleWindowLevel());
+        }
+        
+        // Sync button
+        const syncBtn = document.getElementById('syncBtn');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', (e) => {
+                this.options.showCrosshairs = !this.options.showCrosshairs;
+                e.target.classList.toggle('active');
+            });
+        }
+    }
+    
+    resetAllViews() {
+        Object.values(this.viewportIds).forEach(viewportId => {
+            const viewport = this.renderingEngine.getViewport(viewportId);
+            viewport.resetCamera();
+            viewport.render();
+        });
+        
+        console.log('✓ All views reset');
+    }
+    
+    toggleWindowLevel() {
+        // Toggle window/level adjustment mode
+        console.log('Window/Level adjustment mode toggled');
+        // Implement W/L adjustment with mouse drag
     }
     
     getClickedCoordinates() {
         return this.clickedCoordinates;
     }
     
+    showError(message) {
+        this.container.innerHTML = `
+            <div class="error-container">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                    <path d="M12 8v4M12 16h.01" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <h3>Viewer Error</h3>
+                <p>${message}</p>
+            </div>
+        `;
+    }
+    
     destroy() {
-        try {
-            if (this.canvas) {
-                cornerstone.disable(this.canvas);
-            }
-        } catch (error) {
-            console.warn('Cleanup error:', error);
+        if (this.renderingEngine) {
+            this.renderingEngine.destroy();
         }
     }
 }
 
-// Export for module systems
+// Export
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = DICOMViewer;
+    module.exports = DICOMViewer3D;
 }

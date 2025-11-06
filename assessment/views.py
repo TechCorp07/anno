@@ -149,6 +149,8 @@ def dashboard(request):
     # Get available tests for user
     available_tests = Test.objects.filter(
         is_active=True,
+        category__is_active=True,
+        category__cohorts__is_active=True,
         category__cohorts__members__user=request.user
     ).distinct()
     
@@ -452,84 +454,72 @@ def dicom_question_view(request, attempt_id, question_id):
 @login_required
 @require_http_methods(["POST"])
 def submit_dicom_answer(request, attempt_id):
-    """
-    Submit DICOM answer with clicked coordinates
-    Enhanced version of submit_answer for DICOM questions
-    """
+    """Submit DICOM answer with 3D coordinates"""
     attempt = get_object_or_404(TestAttempt, id=attempt_id, user=request.user)
     
-    # Check if expired
     if attempt.is_expired() or attempt.status == 'completed':
-        return JsonResponse({
-            'success': False,
-            'error': 'Test is no longer active'
-        }, status=400)
+        return JsonResponse({'success': False, 'error': 'Test expired'}, status=400)
     
     question_id = request.POST.get('question_id')
     
-    # Check for DICOM coordinates
-    clicked_x = request.POST.get('clicked_x')
-    clicked_y = request.POST.get('clicked_y')
+    # Get 3D coordinates
+    clicked_x = request.POST.get('clicked_x')  # World X
+    clicked_y = request.POST.get('clicked_y')  # World Y
+    clicked_z = request.POST.get('clicked_z')  # World Z
+    viewport = request.POST.get('viewport')     # Which plane
     
-    # Check for MCQ answer
-    selected_answer = request.POST.get('answer')
-    
-    if not question_id:
-        return JsonResponse({
-            'success': False,
-            'error': 'Missing question_id'
-        }, status=400)
+    if not all([question_id, clicked_x, clicked_y, clicked_z]):
+        return JsonResponse({'success': False, 'error': 'Missing coordinates'}, status=400)
     
     question = get_object_or_404(Question, id=question_id)
     
-    # Handle DICOM question with coordinates
-    if question.question_type == 'dicom' and clicked_x and clicked_y:
-        answer, created = Answer.objects.update_or_create(
-            attempt=attempt,
-            question=question,
-            defaults={
-                'clicked_coordinates': {
-                    'x': int(clicked_x),
-                    'y': int(clicked_y)
-                }
-            }
+    # Calculate if answer is correct (check 3D distance to hotspot)
+    is_correct = check_3d_hotspot_hit(
+        float(clicked_x), 
+        float(clicked_y), 
+        float(clicked_z),
+        question.hotspot_coordinates
+    )
+    
+    # Save answer
+    answer, created = Answer.objects.update_or_create(
+        attempt=attempt,
+        question=question,
+        defaults={
+            'clicked_x': float(clicked_x),
+            'clicked_y': float(clicked_y),
+            'clicked_z': float(clicked_z),
+            'clicked_viewport': viewport,
+            'is_correct': is_correct,
+            'submitted_at': timezone.now()
+        }
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'is_correct': is_correct,
+        'answer_id': answer.id
+    })
+
+def check_3d_hotspot_hit(x, y, z, hotspots):
+    """Check if 3D coordinates fall within any hotspot region"""
+    import math
+    
+    for hotspot in hotspots:
+        # Calculate 3D Euclidean distance
+        distance = math.sqrt(
+            (x - hotspot.get('x', 0))**2 +
+            (y - hotspot.get('y', 0))**2 +
+            (z - hotspot.get('z', 0))**2
         )
         
-        # Check if answer is correct (within hotspot)
-        is_correct = answer.check_answer()
-        
-        return JsonResponse({
-            'success': True,
-            'is_correct': is_correct,
-            'question_id': question.id,
-            'question_type': 'dicom'
-        })
+        # Check if within tolerance radius
+        radius = hotspot.get('radius', 30)  # 30mm default tolerance
+        if distance <= radius:
+            return True
     
-    # Handle regular MCQ answer
-    elif selected_answer:
-        answer, created = Answer.objects.update_or_create(
-            attempt=attempt,
-            question=question,
-            defaults={
-                'selected_answer': selected_answer
-            }
-        )
-        
-        # Check if answer is correct
-        is_correct = answer.check_answer()
-        
-        return JsonResponse({
-            'success': True,
-            'is_correct': is_correct,
-            'question_id': question.id,
-            'question_type': question.question_type
-        })
-    
-    else:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid answer format'
-        }, status=400)
+    return False
+
 
 def terms_conditions(request):
     return render(request, 'assessment/terms_conditions.html')

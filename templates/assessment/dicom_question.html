@@ -2,132 +2,287 @@
 {% load static %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dicom_viewer_3d.css' %}">
 <style>
-    .dicom-viewer-container {
-        position: relative;
-        width: 100%;
-        max-width: 800px;
-        margin: 0 auto;
+    .page-header {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 2px solid #00ff66;
     }
     
-    .dicom-canvas {
-        width: 100%;
-        height: 600px;
-        background: #000;
-        border-radius: 8px;
-        cursor: crosshair;
+    .page-header h1 {
+        margin: 0;
+        color: #00ff66;
+        font-size: 24px;
+        font-weight: 700;
     }
     
-    .viewer-controls {
-        margin-top: 1rem;
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+    .page-header p {
+        margin: 5px 0 0;
+        color: #888;
+        font-size: 14px;
     }
     
-    .coordinate-display {
+    .question-panel {
         background: #1a1a1a;
-        color: #00ff00;
-        padding: 0.75rem;
-        border-radius: 6px;
-        font-family: 'Courier New', monospace;
-        font-size: 0.9rem;
+        padding: 24px;
+        border-radius: 12px;
+        border: 2px solid #333;
+        margin-bottom: 20px;
     }
     
-    .hotspot-marker {
-        position: absolute;
+    .question-text {
+        color: #fff;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+    }
+    
+    .instruction-box {
+        background: rgba(0, 255, 102, 0.05);
+        border-left: 3px solid #00ff66;
+        border-radius: 4px;
+        padding: 12px;
+        color: #888;
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+    
+    .instruction-box strong {
+        color: #00ff66;
+    }
+    
+    .viewer-wrapper {
+        width: 100%;
+        height: 700px;
+        margin-bottom: 20px;
+    }
+    
+    .timer-display {
+        background: rgba(0, 0, 0, 0.8);
+        padding: 12px 20px;
+        border-radius: 8px;
+        border: 2px solid #00ff66;
+    }
+    
+    .timer-label {
+        font-size: 12px;
+        color: #888;
+        margin-bottom: 4px;
+    }
+    
+    .timer-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #00ff66;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .timer-value.warning {
+        color: #ffaa00;
+    }
+    
+    .timer-value.danger {
+        color: #ff0000;
+        animation: timerPulse 1s infinite;
+    }
+    
+    @keyframes timerPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    
+    .feedback-panel {
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: none;
+    }
+    
+    .feedback-panel.correct {
+        background: rgba(0, 255, 0, 0.1);
+        border: 2px solid #00ff00;
+        color: #00ff00;
+        display: block;
+    }
+    
+    .feedback-panel.incorrect {
+        background: rgba(255, 0, 0, 0.1);
         border: 2px solid #ff0000;
-        background: rgba(255, 0, 0, 0.2);
-        pointer-events: none;
+        color: #ff6666;
+        display: block;
+    }
+    
+    .feedback-panel.info {
+        background: rgba(0, 255, 102, 0.1);
+        border: 2px solid #00ff66;
+        color: #00ff66;
+        display: block;
+    }
+    
+    .action-buttons {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+    }
+    
+    .btn {
+        padding: 12px 32px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-back {
+        background: #333;
+        color: #00ff66;
+        border: 2px solid #00ff66;
+    }
+    
+    .btn-back:hover {
+        background: #00ff66;
+        color: #000;
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%);
+        color: #000;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 255, 102, 0.4);
+    }
+    
+    .btn-submit:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .explanation-box {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid #444;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 12px;
+    }
+    
+    .explanation-box strong {
+        color: #00ff66;
     }
 </style>
 {% endblock %}
 
 {% block extra_js %}
-<!-- Cornerstone Core Library -->
-<script src="https://unpkg.com/cornerstone-core@2.6.1/dist/cornerstone.min.js"></script>
-<script src="https://unpkg.com/cornerstone-math@0.1.10/dist/cornerstoneMath.min.js"></script>
-<script src="https://unpkg.com/cornerstone-tools@6.0.10/dist/cornerstoneTools.min.js"></script>
+<!-- Cornerstone3D - Modern Medical Imaging Library -->
+<script src="https://unpkg.com/@cornerstonejs/core@1.0.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@cornerstonejs/tools@1.0.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@cornerstonejs/dicom-image-loader@1.0.0/dist/index.umd.js"></script>
+<script src="https://unpkg.com/@cornerstonejs/streaming-image-volume-loader@1.0.0/dist/index.umd.js"></script>
 
-<!-- DICOM Image Loader -->
-<script src="https://unpkg.com/cornerstone-wado-image-loader@4.1.3/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
-
-<!-- Web Image Loader (for demo with PNG/JPG) -->
-<script src="https://unpkg.com/cornerstone-web-image-loader@2.1.1/dist/cornerstoneWebImageLoader.min.js"></script>
-
-<!-- Our DICOM Viewer -->
-<script src="{% static 'js/dicom_viewer.js' %}"></script>
+<!-- 3D MPR DICOM Viewer -->
+<script src="{% static 'js/dicom_viewer_3d.js' %}"></script>
 
 <script>
-let dicomViewer;
+let dicomViewer3D;
 let selectedCoordinates = null;
+let timerInterval = null;
+let timeRemaining = {{ question.time_limit_seconds }};
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // Hotspot regions from question data (if any)
+    console.log('Initializing 3D DICOM Viewer...');
+    
+    // Hotspot regions from question data
     const hotspotRegions = {{ question.hotspot_coordinates|safe }};
     
-    // Initialize viewer
-    dicomViewer = new DICOMViewer(
+    // Initialize 3D MPR viewer
+    dicomViewer3D = new DICOMViewer3D(
         'dicomViewer',
-        '{{ question.question_image.url }}',  // Can be DICOM or regular image
-        hotspotRegions || []
+        '{{ question.question_image.url }}',
+        {
+            enableHotspots: true,
+            hotspotRegions: hotspotRegions || [],
+            showCrosshairs: true,
+            allowWindowLevel: true,
+            allowPan: true,
+            allowZoom: true,
+            onCoordinateClick: function(coordinates, hitHotspot) {
+                handleCoordinateClick(coordinates, hitHotspot);
+            }
+        }
     );
     
-    // Set callback for coordinate clicks
-    dicomViewer.onCoordinateClick = function(coordinates, hitHotspot) {
-        selectedCoordinates = coordinates;
-        
-        // Update display
-        document.getElementById('coordDisplay').innerHTML = `
-            <strong>Click Registered:</strong><br>
-            X: ${coordinates.x}<br>
-            Y: ${coordinates.y}
-        `;
-        
-        // Show feedback if hotspot hit (for training mode only)
-        {% if show_feedback %}
-        if (hitHotspot) {
-            document.getElementById('feedback').innerHTML = `
-                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                    ✓ Correct! You identified: <strong>${hitHotspot.label}</strong>
-                </div>
-            `;
-        } else {
-            document.getElementById('feedback').innerHTML = `
-                <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-                    Click registered. Submit your answer when ready.
-                </div>
-            `;
-        }
-        {% endif %}
-        
-        // Enable submit button
-        document.getElementById('submitBtn').disabled = false;
-    };
-    
     // Initialize the viewer
-    const initialized = await dicomViewer.initialize();
+    const initialized = await dicomViewer3D.initialize();
     
     if (!initialized) {
-        console.error('Failed to initialize DICOM viewer');
+        console.error('Failed to initialize 3D DICOM viewer');
+        showFeedback('error', 'Failed to load DICOM viewer. Please refresh the page.');
+    } else {
+        console.log('✓ 3D DICOM Viewer ready');
     }
+    
+    // Start timer
+    startTimer();
 });
 
-// Submit answer function
+function handleCoordinateClick(coordinates, hitHotspot) {
+    console.log('Clicked coordinates:', coordinates);
+    console.log('Hit hotspot:', hitHotspot);
+    
+    selectedCoordinates = coordinates;
+    
+    // Show feedback based on training mode
+    {% if show_feedback %}
+    if (hitHotspot) {
+        showFeedback('correct', `✓ Correct! You identified: <strong>${hitHotspot.name || 'Target Structure'}</strong>`);
+    } else {
+        showFeedback('info', 'Click registered. Try again or submit your answer.');
+    }
+    {% else %}
+    showFeedback('info', `Click registered in <strong>${coordinates.viewport.toUpperCase()}</strong> plane. Submit when ready.`);
+    {% endif %}
+    
+    // Enable submit button
+    document.getElementById('submitBtn').disabled = false;
+}
+
+function showFeedback(type, message) {
+    const feedbackPanel = document.getElementById('feedback');
+    feedbackPanel.className = 'feedback-panel ' + type;
+    feedbackPanel.innerHTML = message;
+}
+
 function submitDICOMAnswer() {
     if (!selectedCoordinates) {
         alert('Please click on the image to select your answer first.');
         return;
     }
     
-    // Submit via HTMX or form
+    // Disable submit button
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+    
+    // Prepare form data
     const formData = new FormData();
     formData.append('question_id', {{ question.id }});
-    formData.append('clicked_x', selectedCoordinates.x);
-    formData.append('clicked_y', selectedCoordinates.y);
+    formData.append('clicked_x', selectedCoordinates.world[0]);
+    formData.append('clicked_y', selectedCoordinates.world[1]);
+    formData.append('clicked_z', selectedCoordinates.world[2]);
+    formData.append('viewport', selectedCoordinates.viewport);
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
     
-    fetch('{% url "submit_answer" attempt.id %}', {
+    // Submit answer
+    fetch('{% url "submit_dicom_answer" attempt.id %}', {
         method: 'POST',
         body: formData
     })
@@ -135,38 +290,92 @@ function submitDICOMAnswer() {
     .then(data => {
         if (data.success) {
             // Show result
-            const resultDiv = document.getElementById('result');
             if (data.is_correct) {
-                resultDiv.innerHTML = `
-                    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                        ✓ <strong>Correct!</strong> You identified the hotspot accurately.
-                    </div>
-                `;
+                showFeedback('correct', '✓ <strong>Correct!</strong> You identified the target anatomy accurately.');
             } else {
-                resultDiv.innerHTML = `
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                        ✗ <strong>Incorrect.</strong> The clicked region is not the target anatomy.
-                    </div>
-                `;
+                showFeedback('incorrect', '✗ <strong>Incorrect.</strong> The clicked region is not the target anatomy.');
             }
+            
+            // Update button
+            submitBtn.textContent = 'Answer Submitted ✓';
             
             // Proceed to next question after 2 seconds
             setTimeout(() => {
                 window.location.href = '{% url "take_test" attempt.id %}';
             }, 2000);
+        } else {
+            showFeedback('incorrect', 'Error: ' + (data.error || 'Failed to submit answer'));
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Answer →';
         }
     })
     .catch(error => {
         console.error('Error submitting answer:', error);
-        alert('Failed to submit answer. Please try again.');
+        showFeedback('incorrect', 'Failed to submit answer. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Answer →';
     });
 }
 
-// Reset view
-function resetView() {
-    if (dicomViewer) {
-        dicomViewer.reset();
+function startTimer() {
+    const timerDisplay = document.getElementById('timer');
+    
+    timerInterval = setInterval(() => {
+        timeRemaining--;
+        
+        // Update display
+        const minutes = Math.floor(timeRemaining / 60);
+        const seconds = timeRemaining % 60;
+        timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        // Color coding
+        if (timeRemaining <= 10) {
+            timerDisplay.classList.add('danger');
+        } else if (timeRemaining <= 30) {
+            timerDisplay.classList.add('warning');
+        }
+        
+        // Time's up
+        if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            showFeedback('incorrect', 'Time is up! Submitting answer...');
+            
+            // Auto-submit or move to next question
+            setTimeout(() => {
+                if (selectedCoordinates) {
+                    submitDICOMAnswer();
+                } else {
+                    window.location.href = '{% url "take_test" attempt.id %}';
+                }
+            }, 1000);
+        }
+    }, 1000);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (timerInterval) {
+        clearInterval(timerInterval);
     }
+    if (dicomViewer3D) {
+        dicomViewer3D.destroy();
+    }
+});
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 </script>
 {% endblock %}
@@ -174,88 +383,63 @@ function resetView() {
 {% block title %}DICOM Question - {{ attempt.test.title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 py-8">
+<div class="max-w-7xl mx-auto px-4 py-8">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+    <div class="page-header">
         <div class="flex justify-between items-center">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">{{ question.topic.name }}</h1>
-                <p class="text-gray-600">DICOM Hotspot Identification</p>
+                <h1>🏥 {{ question.topic.name }}</h1>
+                <p>3D Multi-Planar DICOM Analysis</p>
             </div>
-            <div class="text-right">
-                <div class="text-sm text-gray-600 mb-1">Time Remaining</div>
-                <div class="text-3xl font-bold text-blue-600" id="timer">
+            <div class="timer-display">
+                <div class="timer-label">Time Remaining</div>
+                <div class="timer-value" id="timer">
                     {{ question.time_limit_seconds }}s
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Question Text -->
-    <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-800 mb-2">Question:</h2>
-        <p class="text-lg text-gray-700">{{ question.question_text }}</p>
+    <!-- Question Panel -->
+    <div class="question-panel">
+        <div class="question-text">
+            {{ question.question_text }}
+        </div>
+        
+        <div class="instruction-box">
+            <strong>📌 Instructions:</strong>
+            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                <li>Click on <strong>any of the three views</strong> (Axial, Sagittal, or Coronal) to identify the target anatomy</li>
+                <li>Use <strong>mouse wheel</strong> to scroll through slices in each plane</li>
+                <li>Use <strong>middle-click + drag</strong> to pan the image</li>
+                <li>Use the <strong>control buttons</strong> to reset view or adjust window/level</li>
+                <li>Click the <strong>Sync button</strong> to toggle crosshair synchronization</li>
+            </ul>
+        </div>
         
         {% if question.explanation and show_explanation %}
-        <div class="mt-4 p-4 bg-white rounded border border-blue-200">
-            <p class="text-sm text-gray-600"><strong>Hint:</strong> {{ question.explanation }}</p>
+        <div class="explanation-box">
+            <strong>💡 Hint:</strong> {{ question.explanation }}
         </div>
         {% endif %}
     </div>
     
-    <!-- DICOM Viewer -->
-    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <div class="dicom-viewer-container">
-            <!-- Viewer Canvas -->
-            <div id="dicomViewer" class="dicom-canvas"></div>
-            
-            <!-- Instructions -->
-            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                <h3 class="font-semibold text-gray-800 mb-2">📍 Instructions:</h3>
-                <ul class="text-sm text-gray-700 space-y-1">
-                    <li>• <strong>Click</strong> on the image to identify the target anatomy</li>
-                    <li>• <strong>Scroll wheel</strong> to zoom in/out</li>
-                    <li>• <strong>Right-click + drag</strong> to pan the image</li>
-                    <li>• Use the preset buttons below to adjust windowing</li>
-                </ul>
-            </div>
-            
-            <!-- Windowing Presets -->
-            <div class="viewer-controls mt-4">
-                <div id="windowing-presets" class="flex gap-2 flex-wrap"></div>
-                <button onclick="resetView()" 
-                        class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition">
-                    🔄 Reset View
-                </button>
-            </div>
-            
-            <!-- Coordinates Display -->
-            <div class="mt-4">
-                <div id="coordDisplay" class="coordinate-display">
-                    <strong>No click registered yet</strong><br>
-                    Click on the image to register coordinates
-                </div>
-            </div>
-            
-            <!-- Feedback Area -->
-            <div id="feedback" class="mt-4"></div>
-            
-            <!-- Result Area -->
-            <div id="result" class="mt-4"></div>
-        </div>
-    </div>
+    <!-- 3D MPR DICOM Viewer -->
+    <div class="viewer-wrapper" id="dicomViewer"></div>
     
-    <!-- Submit Button -->
-    <div class="flex justify-between items-center">
-        <a href="{% url 'take_test' attempt.id %}" 
-           class="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-semibold">
-            ← Back
+    <!-- Feedback Panel -->
+    <div id="feedback" class="feedback-panel"></div>
+    
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <a href="{% url 'take_test' attempt.id %}" class="btn btn-back">
+            ← Back to Test
         </a>
         
         <button id="submitBtn"
                 onclick="submitDICOMAnswer()" 
                 disabled
-                class="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed">
+                class="btn btn-submit">
             Submit Answer →
         </button>
     </div>

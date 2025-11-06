@@ -294,7 +294,22 @@ function initializeDICOMViewer(questionId, imageUrl, hotspots) {
         console.log(`Image URL: ${imageUrl}`);
         console.log(`Hotspots:`, hotspots);
         
-        const viewer = new DICOMViewer(viewerId, imageUrl, hotspots);
+        const viewer = new DICOMViewer3D(
+            viewerId,
+            imageUrl,
+                {
+                    enableHotspots: true,
+                    hotspotRegions: hotspotsArray,
+                    showCrosshairs: true,
+                    allowWindowLevel: true,
+                    allowPan: true,
+                    allowZoom: true,
+                    onCoordinateClick: function(coordinates, hitHotspot) {
+                        // Handle click
+                        handleDICOMClick(questionId, coordinates, hitHotspot);
+                    }
+                }
+            );
         
         // Set click callback
         viewer.onCoordinateClick = function(coordinates, hitHotspot) {

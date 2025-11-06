@@ -44,6 +44,14 @@ class UserProfileAdmin(admin.ModelAdmin):
         ('User Account', {
             'fields': ('user',)
         }),
+        ('Basic Information', {
+            'fields': ('question_text', 'category', 'question_type', 'difficulty')
+        }),
+        ('DICOM 3D Configuration', {
+            'fields': ('question_image', 'dicom_series', 'primary_plane', 'hotspot_coordinates'),
+            'classes': ('collapse',),
+            'description': 'For 3D DICOM questions: upload multiple slices as JSON array'
+        }),
         ('Personal Information', {
             'fields': (
                 'phone_number', 'date_of_birth', 'national_id', 'gender'

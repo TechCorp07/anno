@@ -383,6 +383,25 @@ class Question(models.Model):
         null=True,
         help_text="JSON array of correct hotspot regions [{x, y, width, height, label}]"
     )
+    # For 3D volumes: store multiple slices
+    dicom_series = models.JSONField(
+        null=True, 
+        blank=True,
+        help_text="Array of DICOM slice URLs for 3D viewing"
+    )
+    
+    # Store which plane the question focuses on
+    primary_plane = models.CharField(
+        max_length=20,
+        choices=[
+            ('axial', 'Axial'),
+            ('sagittal', 'Sagittal'),
+            ('coronal', 'Coronal'),
+            ('any', 'Any Plane')
+        ],
+        default='any',
+        help_text="Which anatomical plane to focus on"
+    )
     
     # For annotation questions
     ground_truth_file = models.FileField(
@@ -803,6 +822,23 @@ class Answer(models.Model):
         null=True,
         blank=True,
         help_text="Dice coefficient for segmentation comparison"
+    )
+    
+    # Store 3D coordinates instead of just 2D
+    clicked_x = models.FloatField(null=True, blank=True, help_text="X world coordinate")
+    clicked_y = models.FloatField(null=True, blank=True, help_text="Y world coordinate")
+    clicked_z = models.FloatField(null=True, blank=True, help_text="Z world coordinate")
+    
+    # Store which viewport was clicked
+    clicked_viewport = models.CharField(
+        max_length=20,
+        choices=[
+            ('axial', 'Axial'),
+            ('sagittal', 'Sagittal'),
+            ('coronal', 'Coronal')
+        ],
+        null=True,
+        blank=True
     )
     
     is_correct = models.BooleanField(null=True, blank=True)

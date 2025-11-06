@@ -199,6 +199,46 @@
         background-color: #ffffff !important;
     }
 
+    /* Section-wise Performance Analysis Tables */
+    .analytics-section .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background: lightgray;
+    }
+
+    .analytics-section .data-table thead {
+        background: #1f2937; /* Dark background for headers */
+    }
+
+    .analytics-section .data-table th {
+        padding: 14px;
+        text-align: left;
+        font-weight: 600;
+        color: #ffffff !important; /* WHITE text for dark background - HIGH CONTRAST */
+        border-bottom: 2px solid #374151;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: #1f2937; /* Consistent dark background */
+    }
+
+    .analytics-section .data-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.95rem;
+        color: #1f2937; /* Dark text on white background */
+        background: lightgray;
+    }
+
+    .analytics-section .data-table tr:hover td {
+        background: #f9fafb;
+    }
+
+    .analytics-section .data-table tr:last-child td {
+        border-bottom: none;
+    }
+
     .btn {
         padding: 14px 28px !important;
         min-height: 52px !important;
@@ -530,7 +570,7 @@
     }
     
     .badge.excellent { background: #d1fae5; color: #065f46; }
-    .badge.good { background: #d1f4ff; color: #065f46; }
+    .badge.good { background: #dbeafe; color: #1e40af; }
     .badge.acceptable { background: #fef3c7; color: #92400e; }
     .badge.marginal { background: #fed7aa; color: #7c2d12; }
     .badge.poor { background: #fee2e2; color: #991b1b; }
